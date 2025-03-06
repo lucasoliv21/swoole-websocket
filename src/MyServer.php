@@ -12,6 +12,8 @@ use Swoole\WebSocket\Server;
 
 class MyServer
 {
+    private bool $debugLog = true;
+
     public function main(): void
     {
         $ws = new Server('0.0.0.0', 9502);
@@ -33,11 +35,16 @@ class MyServer
         $settingsTable->create();
 
         $ws->on('start', function (Server $server) use ($settingsTable): void {
-            echo "server started\n";
+            $this->debugLog("[Server] Started!");
 
             go(function () use ($settingsTable, $server): void {
 
+                $this->debugLog("[Gameloop] Starting!");
+
                 while (true) {
+
+                    $this->debugLog("[Gameloop] Starting game state and setting to waiting.");
+
                     $settingsTable->set('game', [
                         'id' => uniqid(),
                         'status' => 'waiting',
@@ -50,37 +57,51 @@ class MyServer
                         'createdAt' => time(),
                     ]);
 
+                    $this->debugLog("[Gameloop] Sending game state to clients.");
+
                     foreach ($server->connections as $fd) {
                         $server->push($fd, json_encode($settingsTable->get('game')));
                     }
 
+                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
+
                     sleep(3);
 
-                    // echo "Server rolled \n";
+                    $this->debugLog("[Gameloop] Setting game state to running.");
 
                     $settingsTable->set('game', ['status' => 'running']);
 
+                    $this->debugLog("[Gameloop] Sending game state to clients.");
+
                     foreach ($server->connections as $fd) {
                         $server->push($fd, json_encode($settingsTable->get('game')));
                     }
 
+                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
+
                     sleep(3);
 
-                    // echo "Server finished \n";
+                    $this->debugLog("[Gameloop] Setting game state to finished.");
 
                     $settingsTable->set('game', ['status' => 'finished']);
 
+                    $this->debugLog("[Gameloop] Sending game state to clients.");
+
                     foreach ($server->connections as $fd) {
                         $server->push($fd, json_encode($settingsTable->get('game')));
                     }
 
+                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
                     sleep(3);
+
+                    $this->debugLog("[Gameloop] Game loop finished. Restarting...");
                 }
             });
         });
 
         $ws->on('open', function (Server $server, Request $request): void {
             echo "connection open: {$request->fd}\n";
+            $this->debugLog("[Server] Connection open: {$request->fd}");
         });
 
         $ws->on('message', function (Server $server, Frame $frame): void {
@@ -90,8 +111,22 @@ class MyServer
 
         $ws->on('close', function (Server $server, int $fd): void {
             echo "connection close: {$fd}\n";
+            $this->debugLog("[Server] Connection close: {$fd}");
         });
 
         $ws->start();
+    }
+
+    private function debugLog(... $items): void
+    {
+        if (! $this->debugLog) {
+            return;
+        }
+
+        foreach ($items as $item) {
+            echo "[DEBUG] ";
+            print_r($item);
+            echo "\n";
+        }
     }
 }
