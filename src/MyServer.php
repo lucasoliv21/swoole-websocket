@@ -113,6 +113,30 @@ class MyServer
                 $server->push($frame->fd, json_encode($settingsTable->get('game')));
                 return;
             }
+
+            if ($frame->data === 'vote-home') {
+                $this->debugLog("[Server] The client voted for home team: {$frame->fd}");
+
+                $settingsTable->incr('game', 'homeVotes');
+
+                foreach ($server->connections as $fd) {
+                    $server->push($fd, json_encode($settingsTable->get('game')));
+                }
+
+                return;
+            }
+
+            if ($frame->data === 'vote-away') {
+                $this->debugLog("[Server] The client voted for away team: {$frame->fd}");
+
+                $settingsTable->incr('game', 'awayVotes');
+                
+                foreach ($server->connections as $fd) {
+                    $server->push($fd, json_encode($settingsTable->get('game')));
+                }
+
+                return;
+            }
         });
 
         $ws->on('close', function (Server $server, int $fd): void {
