@@ -154,7 +154,9 @@ class MyServer
         }
 
         foreach ($items as $item) {
-            echo "[DEBUG] ";
+            $date = date('Y-m-d H:i:s');
+
+            echo "[{$date}] [DEBUG] ";
             print_r($item);
             echo "\n";
         }
