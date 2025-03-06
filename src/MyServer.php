@@ -35,7 +35,7 @@ class MyServer
         $ws->on('start', function (Server $server) use ($settingsTable): void {
             echo "server started\n";
 
-            go(function () use ($settingsTable): void {
+            go(function () use ($settingsTable, $server): void {
 
                 while (true) {
                     $settingsTable->set('game', [
@@ -50,11 +50,19 @@ class MyServer
                         'createdAt' => time(),
                     ]);
 
+                    foreach ($server->connections as $fd) {
+                        $server->push($fd, json_encode($settingsTable->get('game')));
+                    }
+
                     sleep(3);
 
                     // echo "Server rolled \n";
 
                     $settingsTable->set('game', ['status' => 'running']);
+
+                    foreach ($server->connections as $fd) {
+                        $server->push($fd, json_encode($settingsTable->get('game')));
+                    }
 
                     sleep(3);
 
@@ -62,14 +70,12 @@ class MyServer
 
                     $settingsTable->set('game', ['status' => 'finished']);
 
+                    foreach ($server->connections as $fd) {
+                        $server->push($fd, json_encode($settingsTable->get('game')));
+                    }
+
                     sleep(3);
                 }
-            });
-
-            go(function () use ($settingsTable): void {
-                Timer::tick(1000, function () use ($settingsTable): void {
-                    print_r($settingsTable->get('game'));
-                });
             });
         });
 
