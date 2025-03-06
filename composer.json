@@ -2,7 +2,8 @@
     "name": "lucascesardeoliveiradantas/websocket-swoole",
     "autoload": {
         "psr-4": {
-            "Lucascesardeoliveiradantas\\WebsocketSwoole\\": "src/"
+            "Lucascesardeoliveiradantas\\WebsocketSwoole\\": "src/",
+            "App\\": "src/"
         }
     },
     "authors": [
