@@ -1,0 +1,17 @@
+{
+    "name": "lucascesardeoliveiradantas/websocket-swoole",
+    "autoload": {
+        "psr-4": {
+            "Lucascesardeoliveiradantas\\WebsocketSwoole\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "LucasPopan",
+            "email": "lucascodantas@hotmail.com"
+        }
+    ],
+    "require-dev": {
+        "swoole/ide-helper": "@dev"
+    }
+}
