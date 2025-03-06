@@ -45,15 +45,22 @@ class MyServer
 
                     $this->debugLog("[Gameloop] Starting game state and setting to waiting.");
 
+                    $teamHome = $this->getRandomTeam();
+                    $teamAway = $this->getRandomTeam();
+                    
+                    while ($teamHome['id'] === $teamAway['id']) {
+                        $teamAway = $this->getRandomTeam();
+                    }
+
                     $settingsTable->set('game', [
                         'id' => uniqid(),
                         'status' => 'waiting',
-                        'homeName' => 'Real Madrid',
+                        'homeName' => $teamHome['name'],
                         'homeVotes' => 0,
-                        'homeFlag' => '',
-                        'awayName' => 'Barcelona',
+                        'homeFlag' => $teamHome['flag'],
+                        'awayName' => $teamAway['name'],
                         'awayVotes' => 0,
-                        'awayFlag' => '',
+                        'awayFlag' => $teamAway['flag'],
                         'createdAt' => time(),
                     ]);
 
@@ -145,6 +152,70 @@ class MyServer
         });
 
         $ws->start();
+    }
+
+    private function getRandomTeam(): array
+    {
+        $teams = $this->getTeams();
+        $randomIndex = array_rand($teams);
+
+        return $teams[$randomIndex];
+    }
+
+    private function getTeams(): array
+    {
+        return [
+            [
+                'id' => 1,
+                'name' => 'Real Madrid',
+                'flag' => '#',
+            ],
+            [
+                'id' => 2,
+                'name' => 'Barcelona',
+                'flag' => '#',
+            ],
+            [
+                'id' => 3,
+                'name' => 'Liverpool',
+                'flag' => '#',
+            ],
+            [
+                'id' => 4,
+                'name' => 'Manchester City',
+                'flag' => '#',
+            ],
+            [
+                'id' => 5,
+                'name' => 'Bayern Munich',
+                'flag' => '#',
+            ],
+            [
+                'id' => 6,
+                'name' => 'Paris Saint-Germain',
+                'flag' => '#',
+            ],
+            [
+                'id' => 7,
+                'name' => 'Chelsea',
+                'flag' => '#',
+            ],
+            [
+                'id' => 8,
+                'name' => 'Borussia Dortmund',
+                'flag' => '#',
+            ],
+            [
+                'id' => 9,
+                'name' => 'Atletico Madrid',
+                'flag' => '#',
+            ],
+            [
+                'id' => 10,
+                'name' => 'Inter Milan',
+                'flag' => '#',
+            ]
+        ];
     }
 
     private function debugLog(... $items): void
