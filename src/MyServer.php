@@ -104,9 +104,15 @@ class MyServer
             $this->debugLog("[Server] Connection open: {$request->fd}");
         });
 
-        $ws->on('message', function (Server $server, Frame $frame): void {
-            echo "received message: {$frame->data}\n";
-            $server->push($frame->fd, json_encode(["hello", "world"]));
+        $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable): void {
+            $this->debugLog("[Server] Received message: {$frame->data}");
+
+            if ($frame->data === 'send-state') {
+                $this->debugLog("[Server] The client request the state, so we are sending it: {$frame->fd}");
+
+                $server->push($frame->fd, json_encode($settingsTable->get('game')));
+                return;
+            }
         });
 
         $ws->on('close', function (Server $server, int $fd): void {
