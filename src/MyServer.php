@@ -86,7 +86,7 @@ class MyServer
 
                     $this->debugLog("[Gameloop] Waiting for 15 seconds for the next phase.");
 
-                    sleep(15);
+                    sleep(10);
 
                     $this->debugLog("[Gameloop] Setting game state to finished.");
 
@@ -168,52 +168,52 @@ class MyServer
             [
                 'id' => 1,
                 'name' => 'Real Madrid',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2829/image',
             ],
             [
                 'id' => 2,
                 'name' => 'Barcelona',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2817/image',
             ],
             [
                 'id' => 3,
                 'name' => 'Liverpool',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/44/image',
             ],
             [
                 'id' => 4,
                 'name' => 'Manchester City',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/17/image',
             ],
             [
                 'id' => 5,
                 'name' => 'Bayern Munich',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2672/image',
             ],
             [
                 'id' => 6,
                 'name' => 'Paris Saint-Germain',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/1644/image',
             ],
             [
                 'id' => 7,
                 'name' => 'Chelsea',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/38/image',
             ],
             [
                 'id' => 8,
                 'name' => 'Borussia Dortmund',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2673/image',
             ],
             [
                 'id' => 9,
                 'name' => 'Atletico Madrid',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2836/image',
             ],
             [
                 'id' => 10,
                 'name' => 'Inter Milan',
-                'flag' => '#',
+                'flag' => 'https://img.sofascore.com/api/v1/team/2697/image',
             ]
         ];
     }
