@@ -70,9 +70,9 @@ class MyServer
                         $server->push($fd, json_encode($settingsTable->get('game')));
                     }
 
-                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
+                    $this->debugLog("[Gameloop] Waiting for 6 seconds for the next phase.");
 
-                    sleep(3);
+                    sleep(6);
 
                     $this->debugLog("[Gameloop] Setting game state to running.");
 
@@ -84,9 +84,9 @@ class MyServer
                         $server->push($fd, json_encode($settingsTable->get('game')));
                     }
 
-                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
+                    $this->debugLog("[Gameloop] Waiting for 15 seconds for the next phase.");
 
-                    sleep(3);
+                    sleep(15);
 
                     $this->debugLog("[Gameloop] Setting game state to finished.");
 
