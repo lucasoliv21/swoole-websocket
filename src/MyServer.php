@@ -33,11 +33,26 @@ class MyServer
         $settingsTable->column('awayVotes', Table::TYPE_INT);
         $settingsTable->column('awayFlag', Table::TYPE_STRING, 256);
         $settingsTable->create();
+        
+        $statsTable = new Table(1024);
+        $statsTable->column('teamId', Table::TYPE_INT);
+        $statsTable->column('played', Table::TYPE_INT);
+        $statsTable->column('won', Table::TYPE_INT);
+        $statsTable->create();
+        
+        // Após criar a tabela $statsTable
+        foreach ($this->getTeams() as $team) {
+            $statsTable->set($team['name'], [
+                'teamId' => $team['id'],
+                'played' => 0,
+                'won'    => 0,
+            ]);
+        }
 
-        $ws->on('start', function (Server $server) use ($settingsTable): void {
+        $ws->on('start', function (Server $server) use ($settingsTable, $statsTable): void {
             $this->debugLog("[Server] Started!");
 
-            go(function () use ($settingsTable, $server): void {
+            go(function () use ($settingsTable, $statsTable, $server): void {
 
                 $this->debugLog("[Gameloop] Starting!");
 
@@ -67,7 +82,11 @@ class MyServer
                     $this->debugLog("[Gameloop] Sending game state to clients.");
 
                     foreach ($server->connections as $fd) {
-                        $server->push($fd, json_encode($settingsTable->get('game')));
+                        $dataToSend = [
+                            'game' => $settingsTable->get('game'),
+                            'stats' => $this->getAllStats($statsTable),
+                        ];
+                        $server->push($fd, json_encode($dataToSend));
                     }
 
                     $this->debugLog("[Gameloop] Waiting for 6 seconds for the next phase.");
@@ -81,7 +100,11 @@ class MyServer
                     $this->debugLog("[Gameloop] Sending game state to clients.");
 
                     foreach ($server->connections as $fd) {
-                        $server->push($fd, json_encode($settingsTable->get('game')));
+                        $dataToSend = [
+                            'game' => $settingsTable->get('game'),
+                            'stats' => $this->getAllStats($statsTable),
+                        ];
+                        $server->push($fd, json_encode($dataToSend));
                     }
 
                     $this->debugLog("[Gameloop] Waiting for 15 seconds for the next phase.");
@@ -91,11 +114,37 @@ class MyServer
                     $this->debugLog("[Gameloop] Setting game state to finished.");
 
                     $settingsTable->set('game', ['status' => 'finished']);
+                    
+                    $gameData = $settingsTable->get('game');
+                    $homeName = $gameData['homeName'];
+                    $awayName = $gameData['awayName'];
+                    $homeVotes = $gameData['homeVotes'];
+                    $awayVotes = $gameData['awayVotes'];
+                    
+                    $statsHome = $statsTable->get($homeName);
+                    $statsAway = $statsTable->get($awayName);
+                    
+                    $statsHome['played']++;
+                    $statsAway['played']++;
+
+                    // 4) Descobrimos quem ganhou
+                    if ($homeVotes > $awayVotes) {
+                        $statsHome['won']++;
+                    } elseif ($awayVotes > $homeVotes) {
+                        $statsAway['won']++;
+                    } 
+
+                    $statsTable->set($homeName, $statsHome);
+                    $statsTable->set($awayName, $statsAway);
 
                     $this->debugLog("[Gameloop] Sending game state to clients.");
 
                     foreach ($server->connections as $fd) {
-                        $server->push($fd, json_encode($settingsTable->get('game')));
+                        $dataToSend = [
+                            'game' => $settingsTable->get('game'),
+                            'stats' => $this->getAllStats($statsTable),
+                        ];
+                        $server->push($fd, json_encode($dataToSend));
                     }
 
                     $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
@@ -111,13 +160,17 @@ class MyServer
             $this->debugLog("[Server] Connection open: {$request->fd}");
         });
 
-        $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable): void {
+        $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
             $this->debugLog("[Server] Received message: {$frame->data}");
 
             if ($frame->data === 'send-state') {
                 $this->debugLog("[Server] The client request the state, so we are sending it: {$frame->fd}");
 
-                $server->push($frame->fd, json_encode($settingsTable->get('game')));
+                $dataToSend = [
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                ];
+                $server->push($frame->fd, json_encode($dataToSend));
                 return;
             }
 
@@ -127,7 +180,11 @@ class MyServer
                 $settingsTable->incr('game', 'homeVotes');
 
                 foreach ($server->connections as $fd) {
-                    $server->push($fd, json_encode($settingsTable->get('game')));
+                    $dataToSend = [
+                        'game' => $settingsTable->get('game'),
+                        'stats' => $this->getAllStats($statsTable),
+                    ];
+                    $server->push($fd, json_encode($dataToSend));
                 }
 
                 return;
@@ -139,7 +196,11 @@ class MyServer
                 $settingsTable->incr('game', 'awayVotes');
                 
                 foreach ($server->connections as $fd) {
-                    $server->push($fd, json_encode($settingsTable->get('game')));
+                    $dataToSend = [
+                        'game' => $settingsTable->get('game'),
+                        'stats' => $this->getAllStats($statsTable),
+                    ];
+                    $server->push($fd, json_encode($dataToSend));
                 }
 
                 return;
@@ -216,6 +277,35 @@ class MyServer
                 'flag' => 'https://img.sofascore.com/api/v1/team/2697/image',
             ]
         ];
+    }
+    
+    private function getAllStats(Table $statsTable): array
+    {
+        $stats = [];
+        foreach ($this->getTeams() as $team) {
+            $key = (string)$team['name'];  // isso aqui vai ser interessante pegar pelo id ne?
+            $row = $statsTable->get($key);
+            
+            if (!$row) {
+                $stats[$key] = [
+                    'played' => 0,
+                    'won' => 0,
+                    'winRate' => 0,
+                ];
+                continue;
+            }
+            
+            $played = $row['played'];
+            $won = $row['won'];
+            $winRate = $played > 0 ? ($won / $played) : 0;
+            
+            $stats[$key] = [
+                'played' => $played,
+                'won' => $won,
+                'winRate' => $winRate,
+            ];
+        }
+        return $stats;
     }
 
     private function debugLog(... $items): void
