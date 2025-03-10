@@ -26,4 +26,13 @@ $server->main();
  * @TODO - Nova funcionalidade- Últimos resultados (Baixa prioridade): Implementar uma espécie
  * de histórico de resultados, onde o frontend possa mostrar os últimos 20 jogos que aconteceram
  * e seus resultados pro jogador, semelhante ao histórico do Aviator ou Roleta.
+ * 
+ * @TODO - Melhoria & Segurança - Cooldown de votação (Alta prioridade): Implementar um sistema
+ * de cooldown para a votação, onde um jogador só pode votar a cada 1 segundos, evitando que aconteça
+ * spam de votos, e não votar em dois times ao mesmo tempo.
+ * 
+ * @IDEA - Nova funcionalidade - Mecânica de skillcheck: Ao clicar pra votar, o jogador precisa
+ * acertar um botão no momento certo para confirmar o voto, caso erre o botão o voto vale menos
+ * ou é cancelado. Pode ser algo simples como um botão que fica piscando e o jogador precisa clicar
+ * no momento certo.
  */
