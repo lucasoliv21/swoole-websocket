@@ -14,6 +14,59 @@ class MyServer
 {
     private bool $debugLog = true;
 
+    private Table $historyTable;
+
+    private function getHistory(): array
+    {
+        if (! isset($this->historyTable)) {
+            return [];
+        }
+
+        return json_decode($this->historyTable->get('history')['json'], true) ?? [];
+    }
+
+    private function addHistory(array $game): void
+    {
+        if ($game['status'] !== 'finished') {
+            $this->debugLog("[History] Game is not finished, so we are not adding to history.");
+            return;
+        }
+
+        if ($game['homeVotes'] === $game['awayVotes']) {
+            $this->debugLog("[History] Game is a draw, so we are not adding to history.");
+            return;
+        }
+
+        // Check if the history table is already created
+        if (! isset($this->historyTable)) {
+            $this->debugLog("[History] Creating history table.");
+
+            $this->historyTable = new Table(1024);
+            $this->historyTable->column('json', Table::TYPE_STRING, 4096);
+            $this->historyTable->create();
+
+            $this->historyTable->set('history', ['json' => json_encode([$game])]);
+
+            $this->debugLog("[History] Added game to history.");
+        } else {
+            $this->debugLog("[History] Adding game to already created history table.");
+
+            $history = $this->historyTable->get('history')['json'];
+            $history = json_decode($history, true);
+            
+            // Adiciona o item no início do array e remove o último item se tiver mais de 20
+            $history = array_merge([$game], $history);
+    
+            if (count($history) > 20) {
+                array_pop($history);
+            }
+
+            $this->historyTable->set('history', ['json' => json_encode($history)]);
+
+            $this->debugLog("[History] History table updated.");
+        }
+    }
+
     public function main(): void
     {
         $ws = new Server('0.0.0.0', 9502);
@@ -39,6 +92,7 @@ class MyServer
         $statsTable->column('played', Table::TYPE_INT);
         $statsTable->column('won', Table::TYPE_INT);
         $statsTable->create();
+
         
         // Após criar a tabela $statsTable
         foreach ($this->getTeams() as $team) {
@@ -83,6 +137,7 @@ class MyServer
 
                     foreach ($server->connections as $fd) {
                         $dataToSend = [
+                            'history' => $this->getHistory(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -101,6 +156,7 @@ class MyServer
 
                     foreach ($server->connections as $fd) {
                         $dataToSend = [
+                            'history' => $this->getHistory(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -114,6 +170,8 @@ class MyServer
                     $this->debugLog("[Gameloop] Setting game state to finished.");
 
                     $settingsTable->set('game', ['status' => 'finished']);
+
+                    $this->addHistory($settingsTable->get('game'));
                     
                     $gameData = $settingsTable->get('game');
                     $homeName = $gameData['homeName'];
@@ -141,6 +199,7 @@ class MyServer
 
                     foreach ($server->connections as $fd) {
                         $dataToSend = [
+                            'history' => $this->getHistory(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -167,6 +226,7 @@ class MyServer
                 $this->debugLog("[Server] The client request the state, so we are sending it: {$frame->fd}");
 
                 $dataToSend = [
+                    'history' => $this->getHistory(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
                 ];
@@ -181,6 +241,7 @@ class MyServer
 
                 foreach ($server->connections as $fd) {
                     $dataToSend = [
+                        'history' => $this->getHistory(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                     ];
@@ -197,6 +258,7 @@ class MyServer
                 
                 foreach ($server->connections as $fd) {
                     $dataToSend = [
+                        'history' => $this->getHistory(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                     ];
