@@ -8,7 +8,10 @@ $server = new App\MyServer();
 $server->main();
 
 /**
- * @TODO - Bugfix - TOP 5 Win Rates (Média prioridade): Quando o servidor inicia,
+ * @TODO - Bug- Normalmente o histórico do jogador pode manter o histórico de 20
+ * jogos, porém ao armazenar alguns jogos a memória excede e o servidor crasha.
+ * 
+ * @TODO - Bug - TOP 5 Win Rates (Média prioridade): Quando o servidor inicia,
  * ele envia uma lista de times para o frontend de top 5, porém todos eles
  * estão empatados com 0% de winrate, com isto, a ordem na verdade tem 
  * a ver com a ordem que os times foram adicionados na tabela.
