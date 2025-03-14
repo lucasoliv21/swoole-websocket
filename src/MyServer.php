@@ -85,6 +85,8 @@ class MyServer
         $settingsTable->column('awayName', Table::TYPE_STRING, 64);
         $settingsTable->column('awayVotes', Table::TYPE_INT);
         $settingsTable->column('awayFlag', Table::TYPE_STRING, 256);
+        $settingsTable->column('phaseStart', Table::TYPE_INT);
+        $settingsTable->column('phaseDuration', Table::TYPE_INT);
         $settingsTable->create();
         
         $statsTable = new Table(1024);
@@ -130,6 +132,8 @@ class MyServer
                         'awayName' => $teamAway['name'],
                         'awayVotes' => 0,
                         'awayFlag' => $teamAway['flag'],
+                        'phaseStart' => time(),
+                        'phaseDuration' => 6,
                         'createdAt' => time(),
                     ]);
 
@@ -150,7 +154,11 @@ class MyServer
 
                     $this->debugLog("[Gameloop] Setting game state to running.");
 
-                    $settingsTable->set('game', ['status' => 'running']);
+                    $settingsTable->set('game', [
+                        'status' => 'running',
+                        'phaseStart' => time(),
+                        'phaseDuration' => 10,  
+                    ]);
 
                     $this->debugLog("[Gameloop] Sending game state to clients.");
 
@@ -169,7 +177,11 @@ class MyServer
 
                     $this->debugLog("[Gameloop] Setting game state to finished.");
 
-                    $settingsTable->set('game', ['status' => 'finished']);
+                    $settingsTable->set('game', [
+                        'status' => 'finished',
+                        'phaseStart' => time(),
+                        'phaseDuration' => 3,
+                    ]);
 
                     $this->addHistory($settingsTable->get('game'));
                     
