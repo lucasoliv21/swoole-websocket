@@ -110,7 +110,10 @@ class MyServer
 
         $ws->on('start', function (Server $server) use ($settingsTable, $statsTable): void {
             $this->debugLog("[Server] Started!");
+        });
 
+        $ws->on('WorkerStart', function (Server $server, int $workerId) use ($settingsTable, $statsTable): void {
+            $this->debugLog("[Worker] {$workerId} Started!");
             go(function () use ($settingsTable, $statsTable, $server): void {
 
                 $this->debugLog("[Gameloop] Starting!");
