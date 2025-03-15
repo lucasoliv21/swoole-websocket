@@ -14,17 +14,13 @@ class MyServer
 {
     private bool $debugLog = true;
 
-    private Table $historyTable;
+    private array $historyTable = [];
 
-    private int $workerQuantity = 1;
+    private int $workerQuantity = 8;
 
     private function getHistory(): array
     {
-        if (! isset($this->historyTable)) {
-            return [];
-        }
-
-        return json_decode($this->historyTable->get('history')['json'], true) ?? [];
+        return $this->historyTable;
     }
 
     private function addHistory(array $game): void
@@ -39,33 +35,11 @@ class MyServer
             return;
         }
 
-        // Check if the history table is already created
-        if (! isset($this->historyTable)) {
-            $this->debugLog("[History] Creating history table.");
-
-            $this->historyTable = new Table(1024);
-            $this->historyTable->column('json', Table::TYPE_STRING, 4096);
-            $this->historyTable->create();
-
-            $this->historyTable->set('history', ['json' => json_encode([$game])]);
-
-            $this->debugLog("[History] Added game to history.");
+        if (count($this->historyTable) < 20) {
+            array_unshift($this->historyTable, $game);
         } else {
-            $this->debugLog("[History] Adding game to already created history table.");
-
-            $history = $this->historyTable->get('history')['json'];
-            $history = json_decode($history, true);
-            
-            // Adiciona o item no início do array e remove o último item se tiver mais de 20
-            $history = array_merge([$game], $history);
-    
-            if (count($history) > 20) {
-                array_pop($history);
-            }
-
-            $this->historyTable->set('history', ['json' => json_encode($history)]);
-
-            $this->debugLog("[History] History table updated.");
+            array_unshift($this->historyTable, $game);
+            array_pop($this->historyTable);
         }
     }
 
