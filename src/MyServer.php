@@ -433,18 +433,19 @@ class MyServer
         return $stats;
     }
 
-    private function debugLog(... $items): void
+    private function debugLog($item): void
     {
         if (! $this->debugLog) {
             return;
         }
 
-        foreach ($items as $item) {
+        // if can be print out as string
+        if (is_scalar($item)) {
             $date = date('Y-m-d H:i:s');
-
-            echo "[{$date}] [DEBUG] ";
-            print_r($item);
-            echo "\n";
+            echo "[{$date}] [DEBUG] {$item}\n";
+            return;
+        } else {
+            var_dump($item);
         }
     }
 }
