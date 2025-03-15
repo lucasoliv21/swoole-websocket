@@ -16,6 +16,8 @@ class MyServer
 
     private Table $historyTable;
 
+    private int $workerQuantity = 1;
+
     private function getHistory(): array
     {
         if (! isset($this->historyTable)) {
@@ -73,6 +75,7 @@ class MyServer
 
         $ws->set([
             'hook_flags' => SWOOLE_HOOK_ALL,
+            'worker_num' => $this->workerQuantity,
         ]);
 
         $settingsTable = new Table(1024);
