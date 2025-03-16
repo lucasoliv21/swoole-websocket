@@ -28,12 +28,12 @@ class MyServer
     private function addHistory(array $game): void
     {
         if ($game['status'] !== 'finished') {
-            $this->debugLog("[Worker --] [History] Game is not finished, so we are not adding to history.");
+            $this->debugLog("[Worker -] [History] Game is not finished, so we are not adding to history.");
             return;
         }
 
         if ($game['homeVotes'] === $game['awayVotes']) {
-            $this->debugLog("[Worker --] [History] Game is a draw, so we are not adding to history.");
+            $this->debugLog("[Worker -] [History] Game is a draw, so we are not adding to history.");
             return;
         }
 
