@@ -186,8 +186,6 @@ class MyServer
                             'phaseStart' => time(),
                             'phaseDuration' => self::PHASE_DURATION_FINISHED,
                         ]);
-                        
-                        print_r($settingsTable->get('game'));
     
                         $this->historyTable->add($settingsTable->get('game'));
                         
