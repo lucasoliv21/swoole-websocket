@@ -28,12 +28,12 @@ class MyServer
     private function addHistory(array $game): void
     {
         if ($game['status'] !== 'finished') {
-            $this->debugLog("[History] Game is not finished, so we are not adding to history.");
+            $this->debugLog("[Worker --] [History] Game is not finished, so we are not adding to history.");
             return;
         }
 
         if ($game['homeVotes'] === $game['awayVotes']) {
-            $this->debugLog("[History] Game is a draw, so we are not adding to history.");
+            $this->debugLog("[Worker --] [History] Game is a draw, so we are not adding to history.");
             return;
         }
 
@@ -85,7 +85,7 @@ class MyServer
         }
 
         $ws->on('start', function (Server $server) use ($settingsTable, $statsTable): void {
-            $this->debugLog("[Server] Started!");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Started!");
         });
 
         $ws->on('WorkerStart', function (Server $server, int $workerId) use ($settingsTable, $statsTable): void {
@@ -97,16 +97,16 @@ class MyServer
                 return;
             }
 
-            $this->debugLog("[Worker] {$workerId} Started!");
+            $this->debugLog("[Worker {$workerId}] Started!");
 
             if ($workerId === 0) {
                 go(function () use ($settingsTable, $statsTable, $server): void {
 
-                    $this->debugLog("[Gameloop] Starting!");
+                    $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
     
                     while (true) {
     
-                        $this->debugLog("[Gameloop] [Worker {$server->worker_id}] Starting game state and setting to waiting.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting game state and setting to waiting.");
     
                         $teamHome = $this->getRandomTeam();
                         $teamAway = $this->getRandomTeam();
@@ -129,7 +129,7 @@ class MyServer
                             'createdAt' => time(),
                         ]);
     
-                        $this->debugLog("[Gameloop] [Worker {$server->worker_id}] Sending message to everyone on worker 0.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending message to everyone on worker 0.");
 
                         $dataToSend = [
                             'history' => $this->getHistory(),
@@ -155,11 +155,11 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Gameloop] Waiting for 6 seconds for the next phase.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 6 seconds for the next phase.");
     
                         sleep(6);
     
-                        $this->debugLog("[Gameloop] Setting game state to running.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
     
                         $settingsTable->set('game', [
                             'status' => 'running',
@@ -167,7 +167,7 @@ class MyServer
                             'phaseDuration' => 10,  
                         ]);
     
-                        $this->debugLog("[Gameloop] Sending game state to clients.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
     
                         $dataToSend = [
                             'history' => $this->getHistory(),
@@ -193,11 +193,11 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Gameloop] Waiting for 15 seconds for the next phase.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 15 seconds for the next phase.");
     
                         sleep(10);
     
-                        $this->debugLog("[Gameloop] Setting game state to finished.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
     
                         $settingsTable->set('game', [
                             'status' => 'finished',
@@ -229,7 +229,7 @@ class MyServer
                         $statsTable->set($homeName, $statsHome);
                         $statsTable->set($awayName, $statsAway);
     
-                        $this->debugLog("[Gameloop] Sending game state to clients.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
     
                         $dataToSend = [
                             'history' => $this->getHistory(),
@@ -255,17 +255,17 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 3 seconds for the next phase.");
                         sleep(3);
     
-                        $this->debugLog("[Gameloop] Game loop finished. Restarting...");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
                     }
                 });
             }
         });
 
         $ws->on('pipeMessage', function (Server $server, int $srcWorkerId, mixed $message): void {
-            $this->debugLog("[Server] [Worker {$server->worker_id}] Sending message to all (except {$srcWorkerId})");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Sending message to all (except {$srcWorkerId})");
 
             foreach ($server->connections as $fd) {
                 $server->push($fd, $message);
@@ -273,7 +273,7 @@ class MyServer
         });
 
         $ws->on('open', function (Server $server, Request $request): void {
-            $this->debugLog("[Server] [Worker {$server->worker_id}] Player has connected: {$request->fd}");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->fd}");
 
             $this->players[$request->fd] = [
                 'fd' => $request->fd,
@@ -282,10 +282,10 @@ class MyServer
         });
 
         $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
-            $this->debugLog("[Server] Received message: {$frame->data}");
+            // $this->debugLog("[Server] Received message: {$frame->data}");
 
             if ($frame->data === 'send-state') {
-                $this->debugLog("[Server] The client request the state, so we are sending it: {$frame->fd}");
+                $this->debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
 
                 $dataToSend = [
                     'history' => $this->getHistory(),
@@ -297,7 +297,7 @@ class MyServer
             }
 
             if ($frame->data === 'vote-home') {
-                $this->debugLog("[Server] The client voted for home team: {$frame->fd}");
+                $this->debugLog("[Worker {$server->worker_id}] [Server] The client voted for home team: {$frame->fd}");
 
                 $settingsTable->incr('game', 'homeVotes');
 
@@ -314,7 +314,7 @@ class MyServer
             }
 
             if ($frame->data === 'vote-away') {
-                $this->debugLog("[Server] The client voted for away team: {$frame->fd}");
+                $this->debugLog("[Worker {$server->worker_id}] [Server] The client voted for away team: {$frame->fd}");
 
                 $settingsTable->incr('game', 'awayVotes');
                 
@@ -332,7 +332,7 @@ class MyServer
         });
 
         $ws->on('close', function ($server, int $fd): void {
-            $this->debugLog("[Server] [Worker {$server->worker_id}] Player has disconnected: {$fd}");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has disconnected: {$fd}");
             
             unset($this->players[$fd]);
         });
