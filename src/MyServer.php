@@ -15,6 +15,10 @@ class MyServer
     private bool $debugLog = true;
 
     private Table $historyTable;
+    
+    private int $voteCooldown = 1;
+    
+    private array $lastVoteTimes = [];
 
     private function getHistory(): array
     {
@@ -247,8 +251,16 @@ class MyServer
             }
 
             if ($frame->data === 'vote-home') {
+                if (!$this->canVote($frame->fd)) {
+                    $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                    return;
+                }
+            
                 $this->debugLog("[Server] The client voted for home team: {$frame->fd}");
-
+            
+                // Registra o tempo do último voto
+                $this->lastVoteTimes[$frame->fd] = time();
+            
                 $settingsTable->incr('game', 'homeVotes');
 
                 foreach ($server->connections as $fd) {
@@ -264,8 +276,16 @@ class MyServer
             }
 
             if ($frame->data === 'vote-away') {
+                if (!$this->canVote($frame->fd)) {
+                    $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                    return;
+                }
+            
                 $this->debugLog("[Server] The client voted for away team: {$frame->fd}");
-
+            
+                // Registra o tempo do último voto
+                $this->lastVoteTimes[$frame->fd] = time();
+            
                 $settingsTable->incr('game', 'awayVotes');
                 
                 foreach ($server->connections as $fd) {
@@ -287,6 +307,17 @@ class MyServer
         });
 
         $ws->start();
+    }
+    
+    private function canVote(int $fd): bool
+    {
+        // Se não há registro de último voto, pode votar
+        if (!isset($this->lastVoteTimes[$fd])) {
+            return true;
+        }
+
+        $elapsed = time() - $this->lastVoteTimes[$fd];
+        return $elapsed >= $this->voteCooldown;
     }
 
     private function getRandomTeam(): array
