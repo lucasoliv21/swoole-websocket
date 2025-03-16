@@ -21,9 +21,9 @@ class MyServer
 
     private int $workerQuantity = 8;
 
-    private const PHASE_DURATION_WAITING = 1;
-    private const PHASE_DURATION_RUNNING = 2;
-    private const PHASE_DURATION_FINISHED = 1;
+    private const PHASE_DURATION_WAITING = 6;
+    private const PHASE_DURATION_RUNNING = 10;
+    private const PHASE_DURATION_FINISHED = 3;
 
     public function main(): void
     {
