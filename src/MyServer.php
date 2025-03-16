@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App;
 
 use App\Tables\HistoryTable;
+use App\Tables\PlayersTable;
 use Swoole\Http\Request;
 use Swoole\Table;
 use Swoole\Timer;
@@ -17,12 +18,14 @@ class MyServer
 
     private HistoryTable $historyTable;
 
-    private array $players = [];
+    private PlayersTable $playersTable;
 
     private int $workerQuantity = 8;
 
     private const PHASE_DURATION_WAITING = 6;
+
     private const PHASE_DURATION_RUNNING = 10;
+
     private const PHASE_DURATION_FINISHED = 3;
 
     public function main(): void
@@ -56,7 +59,8 @@ class MyServer
 
         $this->historyTable = new HistoryTable();
 
-        
+        $this->playersTable = new PlayersTable();
+
         // Após criar a tabela $statsTable
         foreach ($this->getTeams() as $team) {
             $statsTable->set($team['name'], [
@@ -127,7 +131,7 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($this->players as $player) {
+                        foreach ($server->connections as $player) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
@@ -165,7 +169,7 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($this->players as $player) {
+                        foreach ($server->connections as $player) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
@@ -227,7 +231,7 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($this->players as $player) {
+                        foreach ($server->connections as $player) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
@@ -257,10 +261,7 @@ class MyServer
         $ws->on('open', function (Server $server, Request $request): void {
             $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->fd}");
 
-            $this->players[$request->fd] = [
-                'fd' => $request->fd,
-                'name' => "Player {$request->fd}",
-            ];
+            $this->playersTable->add($request->fd);
         });
 
         $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
@@ -315,8 +316,8 @@ class MyServer
 
         $ws->on('close', function ($server, int $fd): void {
             $this->debugLog("[Worker {$server->worker_id}] [Server] Player has disconnected: {$fd}");
-            
-            unset($this->players[$fd]);
+
+            $this->playersTable->remove($fd);
         });
 
         $ws->start();
