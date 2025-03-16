@@ -251,6 +251,15 @@ class MyServer
             }
 
             if ($frame->data === 'vote-home') {
+                
+                // Pega o estado atual do jogo
+                $game = $settingsTable->get('game');
+                // Vefica se o jogo está em andamento
+                if ($game['status'] !== 'running') {
+                    $this->debugLog("[Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    return;
+                }
+                
                 if (!$this->canVote($frame->fd)) {
                     $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
                     return;
@@ -276,6 +285,15 @@ class MyServer
             }
 
             if ($frame->data === 'vote-away') {
+                
+                // Pega o estado atual do jogo
+                $game = $settingsTable->get('game');
+                // Vefica se o jogo está em andamento
+                if ($game['status'] !== 'running') {
+                    $this->debugLog("[Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    return;
+                }
+                
                 if (!$this->canVote($frame->fd)) {
                     $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
                     return;
