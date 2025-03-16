@@ -15,7 +15,7 @@ final class HistoryTable
 
     public function __construct()
     {
-        $this->table = new Table(30);
+        $this->table = new Table(self::MAX_ITEMS);
 
         $this->table->column('id', Table::TYPE_INT);
         $this->table->column('homeName', Table::TYPE_STRING, 50);
