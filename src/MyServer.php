@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Tables\HistoryTable;
 use Swoole\Http\Request;
 use Swoole\Table;
 use Swoole\Timer;
@@ -14,36 +15,15 @@ class MyServer
 {
     private bool $debugLog = true;
 
-    private array $historyTable = [];
+    private HistoryTable $historyTable;
 
     private array $players = [];
 
     private int $workerQuantity = 8;
 
-    private function getHistory(): array
-    {
-        return $this->historyTable;
-    }
-
-    private function addHistory(array $game): void
-    {
-        if ($game['status'] !== 'finished') {
-            $this->debugLog("[Worker -] [History] Game is not finished, so we are not adding to history.");
-            return;
-        }
-
-        if ($game['homeVotes'] === $game['awayVotes']) {
-            $this->debugLog("[Worker -] [History] Game is a draw, so we are not adding to history.");
-            return;
-        }
-
-        if (count($this->historyTable) < 20) {
-            array_unshift($this->historyTable, $game);
-        } else {
-            array_unshift($this->historyTable, $game);
-            array_pop($this->historyTable);
-        }
-    }
+    private const PHASE_DURATION_WAITING = 1;
+    private const PHASE_DURATION_RUNNING = 2;
+    private const PHASE_DURATION_FINISHED = 1;
 
     public function main(): void
     {
@@ -73,6 +53,8 @@ class MyServer
         $statsTable->column('played', Table::TYPE_INT);
         $statsTable->column('won', Table::TYPE_INT);
         $statsTable->create();
+
+        $this->historyTable = new HistoryTable();
 
         
         // Após criar a tabela $statsTable
@@ -125,14 +107,14 @@ class MyServer
                             'awayVotes' => 0,
                             'awayFlag' => $teamAway['flag'],
                             'phaseStart' => time(),
-                            'phaseDuration' => 6,
+                            'phaseDuration' => self::PHASE_DURATION_WAITING,
                             'createdAt' => time(),
                         ]);
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending message to everyone on worker 0.");
 
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -147,7 +129,7 @@ class MyServer
 
                         foreach ($this->players as $player) {
                             $dataToSend = [
-                                'history' => $this->getHistory(),
+                                'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
@@ -155,22 +137,22 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 6 seconds for the next phase.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
     
-                        sleep(6);
+                        sleep(self::PHASE_DURATION_WAITING);
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
     
                         $settingsTable->set('game', [
                             'status' => 'running',
                             'phaseStart' => time(),
-                            'phaseDuration' => 10,  
+                            'phaseDuration' => self::PHASE_DURATION_RUNNING,  
                         ]);
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
     
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -185,7 +167,7 @@ class MyServer
 
                         foreach ($this->players as $player) {
                             $dataToSend = [
-                                'history' => $this->getHistory(),
+                                'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
@@ -193,19 +175,21 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 15 seconds for the next phase.");
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
     
-                        sleep(10);
+                        sleep(self::PHASE_DURATION_RUNNING);
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
     
                         $settingsTable->set('game', [
                             'status' => 'finished',
                             'phaseStart' => time(),
-                            'phaseDuration' => 3,
+                            'phaseDuration' => self::PHASE_DURATION_FINISHED,
                         ]);
+                        
+                        print_r($settingsTable->get('game'));
     
-                        $this->addHistory($settingsTable->get('game'));
+                        $this->historyTable->add($settingsTable->get('game'));
                         
                         $gameData = $settingsTable->get('game');
                         $homeName = $gameData['homeName'];
@@ -232,7 +216,7 @@ class MyServer
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
     
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
@@ -247,7 +231,7 @@ class MyServer
 
                         foreach ($this->players as $player) {
                             $dataToSend = [
-                                'history' => $this->getHistory(),
+                                'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
@@ -255,8 +239,8 @@ class MyServer
                             $server->push($player['fd'], json_encode($dataToSend));
                         }
     
-                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for 3 seconds for the next phase.");
-                        sleep(3);
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
+                        sleep(self::PHASE_DURATION_FINISHED);
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
                     }
@@ -288,7 +272,7 @@ class MyServer
                 $this->debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
 
                 $dataToSend = [
-                    'history' => $this->getHistory(),
+                    'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
                 ];
@@ -303,7 +287,7 @@ class MyServer
 
                 foreach ($server->connections as $fd) {
                     $dataToSend = [
-                        'history' => $this->getHistory(),
+                        'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                     ];
@@ -320,7 +304,7 @@ class MyServer
                 
                 foreach ($server->connections as $fd) {
                     $dataToSend = [
-                        'history' => $this->getHistory(),
+                        'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                     ];
