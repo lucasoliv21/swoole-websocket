@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Tables\HistoryTable;
+use App\Tables\PlayersTable;
 use Swoole\Http\Request;
 use Swoole\Table;
 use Swoole\Timer;
@@ -14,62 +16,17 @@ class MyServer
 {
     private bool $debugLog = true;
 
-    private Table $historyTable;
-    
-    private int $voteCooldown = 1;
-    
-    private array $lastVoteTimes = [];
+    private HistoryTable $historyTable;
 
-    private function getHistory(): array
-    {
-        if (! isset($this->historyTable)) {
-            return [];
-        }
+    private PlayersTable $playersTable;
 
-        return json_decode($this->historyTable->get('history')['json'], true) ?? [];
-    }
+    private int $workerQuantity = 8;
 
-    private function addHistory(array $game): void
-    {
-        if ($game['status'] !== 'finished') {
-            $this->debugLog("[History] Game is not finished, so we are not adding to history.");
-            return;
-        }
+    private const PHASE_DURATION_WAITING = 6;
 
-        if ($game['homeVotes'] === $game['awayVotes']) {
-            $this->debugLog("[History] Game is a draw, so we are not adding to history.");
-            return;
-        }
+    private const PHASE_DURATION_RUNNING = 10;
 
-        // Check if the history table is already created
-        if (! isset($this->historyTable)) {
-            $this->debugLog("[History] Creating history table.");
-
-            $this->historyTable = new Table(1024);
-            $this->historyTable->column('json', Table::TYPE_STRING, 4096);
-            $this->historyTable->create();
-
-            $this->historyTable->set('history', ['json' => json_encode([$game])]);
-
-            $this->debugLog("[History] Added game to history.");
-        } else {
-            $this->debugLog("[History] Adding game to already created history table.");
-
-            $history = $this->historyTable->get('history')['json'];
-            $history = json_decode($history, true);
-            
-            // Adiciona o item no início do array e remove o último item se tiver mais de 20
-            $history = array_merge([$game], $history);
-    
-            if (count($history) > 20) {
-                array_pop($history);
-            }
-
-            $this->historyTable->set('history', ['json' => json_encode($history)]);
-
-            $this->debugLog("[History] History table updated.");
-        }
-    }
+    private const PHASE_DURATION_FINISHED = 3;
 
     public function main(): void
     {
@@ -77,6 +34,7 @@ class MyServer
 
         $ws->set([
             'hook_flags' => SWOOLE_HOOK_ALL,
+            'worker_num' => $this->workerQuantity,
         ]);
 
         $settingsTable = new Table(1024);
@@ -99,7 +57,10 @@ class MyServer
         $statsTable->column('won', Table::TYPE_INT);
         $statsTable->create();
 
-        
+        $this->historyTable = new HistoryTable();
+
+        $this->playersTable = new PlayersTable();
+
         // Após criar a tabela $statsTable
         foreach ($this->getTeams() as $team) {
             $statsTable->set($team['name'], [
@@ -110,139 +71,207 @@ class MyServer
         }
 
         $ws->on('start', function (Server $server) use ($settingsTable, $statsTable): void {
-            $this->debugLog("[Server] Started!");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Started!");
+        });
 
-            go(function () use ($settingsTable, $statsTable, $server): void {
+        $ws->on('WorkerStart', function (Server $server, int $workerId) use ($settingsTable, $statsTable): void {
+            // $this->debugLog("[Worker] {$workerId} Started!");
 
-                $this->debugLog("[Gameloop] Starting!");
+            if ($server->taskworker) {
+                $this->debugLog("[TaskWorker] {$workerId} Started!");
 
-                while (true) {
+                return;
+            }
 
-                    $this->debugLog("[Gameloop] Starting game state and setting to waiting.");
+            $this->debugLog("[Worker {$workerId}] Started!");
 
-                    $teamHome = $this->getRandomTeam();
-                    $teamAway = $this->getRandomTeam();
-                    
-                    while ($teamHome['id'] === $teamAway['id']) {
+            if ($workerId === 0) {
+                go(function () use ($settingsTable, $statsTable, $server): void {
+
+                    $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
+    
+                    while (true) {
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting game state and setting to waiting.");
+    
+                        $teamHome = $this->getRandomTeam();
                         $teamAway = $this->getRandomTeam();
-                    }
+                        
+                        while ($teamHome['id'] === $teamAway['id']) {
+                            $teamAway = $this->getRandomTeam();
+                        }
+    
+                        $settingsTable->set('game', [
+                            'id' => uniqid(),
+                            'status' => 'waiting',
+                            'homeName' => $teamHome['name'],
+                            'homeVotes' => 0,
+                            'homeFlag' => $teamHome['flag'],
+                            'awayName' => $teamAway['name'],
+                            'awayVotes' => 0,
+                            'awayFlag' => $teamAway['flag'],
+                            'phaseStart' => time(),
+                            'phaseDuration' => self::PHASE_DURATION_WAITING,
+                            'createdAt' => time(),
+                        ]);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending message to everyone on worker 0.");
 
-                    $settingsTable->set('game', [
-                        'id' => uniqid(),
-                        'status' => 'waiting',
-                        'homeName' => $teamHome['name'],
-                        'homeVotes' => 0,
-                        'homeFlag' => $teamHome['flag'],
-                        'awayName' => $teamAway['name'],
-                        'awayVotes' => 0,
-                        'awayFlag' => $teamAway['flag'],
-                        'phaseStart' => time(),
-                        'phaseDuration' => 6,
-                        'createdAt' => time(),
-                    ]);
-
-                    $this->debugLog("[Gameloop] Sending game state to clients.");
-
-                    foreach ($server->connections as $fd) {
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
-                        $server->push($fd, json_encode($dataToSend));
-                    }
 
-                    $this->debugLog("[Gameloop] Waiting for 6 seconds for the next phase.");
+                        for ($i = 0; $i < $this->workerQuantity; $i++) {
+                            if ($i === $server->worker_id) {
+                                continue;
+                            }
 
-                    sleep(6);
+                            $server->sendMessage(json_encode($dataToSend), $i);
+                        }
 
-                    $this->debugLog("[Gameloop] Setting game state to running.");
+                        foreach ($server->connections as $player) {
+                            $dataToSend = [
+                                'history' => $this->historyTable->get(),
+                                'game' => $settingsTable->get('game'),
+                                'stats' => $this->getAllStats($statsTable),
+                            ];
 
-                    $settingsTable->set('game', [
-                        'status' => 'running',
-                        'phaseStart' => time(),
-                        'phaseDuration' => 10,  
-                    ]);
-
-                    $this->debugLog("[Gameloop] Sending game state to clients.");
-
-                    foreach ($server->connections as $fd) {
+                            $server->push($player['fd'], json_encode($dataToSend));
+                        }
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
+    
+                        sleep(self::PHASE_DURATION_WAITING);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
+    
+                        $settingsTable->set('game', [
+                            'status' => 'running',
+                            'phaseStart' => time(),
+                            'phaseDuration' => self::PHASE_DURATION_RUNNING,  
+                        ]);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
+    
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
-                        $server->push($fd, json_encode($dataToSend));
-                    }
 
-                    $this->debugLog("[Gameloop] Waiting for 15 seconds for the next phase.");
+                        for ($i = 0; $i < $this->workerQuantity; $i++) {
+                            if ($i === $server->worker_id) {
+                                continue;
+                            }
 
-                    sleep(10);
+                            $server->sendMessage(json_encode($dataToSend), $i);
+                        }
 
-                    $this->debugLog("[Gameloop] Setting game state to finished.");
+                        foreach ($server->connections as $player) {
+                            $dataToSend = [
+                                'history' => $this->historyTable->get(),
+                                'game' => $settingsTable->get('game'),
+                                'stats' => $this->getAllStats($statsTable),
+                            ];
 
-                    $settingsTable->set('game', [
-                        'status' => 'finished',
-                        'phaseStart' => time(),
-                        'phaseDuration' => 3,
-                    ]);
-
-                    $this->addHistory($settingsTable->get('game'));
-                    
-                    $gameData = $settingsTable->get('game');
-                    $homeName = $gameData['homeName'];
-                    $awayName = $gameData['awayName'];
-                    $homeVotes = $gameData['homeVotes'];
-                    $awayVotes = $gameData['awayVotes'];
-                    
-                    $statsHome = $statsTable->get($homeName);
-                    $statsAway = $statsTable->get($awayName);
-                    
-                    $statsHome['played']++;
-                    $statsAway['played']++;
-
-                    // 4) Descobrimos quem ganhou
-                    if ($homeVotes > $awayVotes) {
-                        $statsHome['won']++;
-                    } elseif ($awayVotes > $homeVotes) {
-                        $statsAway['won']++;
-                    } 
-
-                    $statsTable->set($homeName, $statsHome);
-                    $statsTable->set($awayName, $statsAway);
-
-                    $this->debugLog("[Gameloop] Sending game state to clients.");
-
-                    foreach ($server->connections as $fd) {
+                            $server->push($player['fd'], json_encode($dataToSend));
+                        }
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
+    
+                        sleep(self::PHASE_DURATION_RUNNING);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
+    
+                        $settingsTable->set('game', [
+                            'status' => 'finished',
+                            'phaseStart' => time(),
+                            'phaseDuration' => self::PHASE_DURATION_FINISHED,
+                        ]);
+    
+                        $this->historyTable->add($settingsTable->get('game'));
+                        
+                        $gameData = $settingsTable->get('game');
+                        $homeName = $gameData['homeName'];
+                        $awayName = $gameData['awayName'];
+                        $homeVotes = $gameData['homeVotes'];
+                        $awayVotes = $gameData['awayVotes'];
+                        
+                        $statsHome = $statsTable->get($homeName);
+                        $statsAway = $statsTable->get($awayName);
+                        
+                        $statsHome['played']++;
+                        $statsAway['played']++;
+    
+                        // 4) Descobrimos quem ganhou
+                        if ($homeVotes > $awayVotes) {
+                            $statsHome['won']++;
+                        } elseif ($awayVotes > $homeVotes) {
+                            $statsAway['won']++;
+                        } 
+    
+                        $statsTable->set($homeName, $statsHome);
+                        $statsTable->set($awayName, $statsAway);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
+    
                         $dataToSend = [
-                            'history' => $this->getHistory(),
+                            'history' => $this->historyTable->get(),
                             'game' => $settingsTable->get('game'),
                             'stats' => $this->getAllStats($statsTable),
                         ];
-                        $server->push($fd, json_encode($dataToSend));
+
+                        for ($i = 0; $i < $this->workerQuantity; $i++) {
+                            if ($i === $server->worker_id) {
+                                continue;
+                            }
+
+                            $server->sendMessage(json_encode($dataToSend), $i);
+                        }
+
+                        foreach ($server->connections as $player) {
+                            $dataToSend = [
+                                'history' => $this->historyTable->get(),
+                                'game' => $settingsTable->get('game'),
+                                'stats' => $this->getAllStats($statsTable),
+                            ];
+
+                            $server->push($player['fd'], json_encode($dataToSend));
+                        }
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
+                        sleep(self::PHASE_DURATION_FINISHED);
+    
+                        $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
                     }
+                });
+            }
+        });
 
-                    $this->debugLog("[Gameloop] Waiting for 3 seconds for the next phase.");
-                    sleep(3);
+        $ws->on('pipeMessage', function (Server $server, int $srcWorkerId, mixed $message): void {
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Sending message to all (except {$srcWorkerId})");
 
-                    $this->debugLog("[Gameloop] Game loop finished. Restarting...");
-                }
-            });
+            foreach ($server->connections as $fd) {
+                $server->push($fd, $message);
+            }
         });
 
         $ws->on('open', function (Server $server, Request $request): void {
-            echo "connection open: {$request->fd}\n";
-            $this->debugLog("[Server] Connection open: {$request->fd}");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->fd}");
+
+            $this->playersTable->add($request->fd);
         });
 
         $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
-            $this->debugLog("[Server] Received message: {$frame->data}");
+            // $this->debugLog("[Server] Received message: {$frame->data}");
 
             if ($frame->data === 'send-state') {
-                $this->debugLog("[Server] The client request the state, so we are sending it: {$frame->fd}");
+                $this->debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
 
                 $dataToSend = [
-                    'history' => $this->getHistory(),
+                    'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
                 ];
@@ -256,28 +285,36 @@ class MyServer
                 $game = $settingsTable->get('game');
                 // Vefica se o jogo está em andamento
                 if ($game['status'] !== 'running') {
-                    $this->debugLog("[Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
                     return;
                 }
-                
-                if (!$this->canVote($frame->fd)) {
-                    $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+
+                $result = $this->playersTable->vote($frame->fd);
+
+                if (! $result) {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
                     return;
                 }
-            
-                $this->debugLog("[Server] The client voted for home team: {$frame->fd}");
-            
-                // Registra o tempo do último voto
-                $this->lastVoteTimes[$frame->fd] = time();
+
+                $this->debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de casa.");
             
                 $settingsTable->incr('game', 'homeVotes');
 
+                $dataToSend = [
+                    'history' => $this->historyTable->get(),
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                ];
+
+                for ($i = 0; $i < $this->workerQuantity; $i++) {
+                    if ($i === $server->worker_id) {
+                        continue;
+                    }
+
+                    $server->sendMessage(json_encode($dataToSend), $i);
+                }
+
                 foreach ($server->connections as $fd) {
-                    $dataToSend = [
-                        'history' => $this->getHistory(),
-                        'game' => $settingsTable->get('game'),
-                        'stats' => $this->getAllStats($statsTable),
-                    ];
                     $server->push($fd, json_encode($dataToSend));
                 }
 
@@ -285,33 +322,41 @@ class MyServer
             }
 
             if ($frame->data === 'vote-away') {
-                
                 // Pega o estado atual do jogo
                 $game = $settingsTable->get('game');
+
                 // Vefica se o jogo está em andamento
                 if ($game['status'] !== 'running') {
-                    $this->debugLog("[Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
                     return;
                 }
                 
-                if (!$this->canVote($frame->fd)) {
-                    $this->debugLog("[Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                $result = $this->playersTable->vote($frame->fd);
+
+                if (! $result) {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
                     return;
                 }
             
-                $this->debugLog("[Server] The client voted for away team: {$frame->fd}");
-            
-                // Registra o tempo do último voto
-                $this->lastVoteTimes[$frame->fd] = time();
-            
+                $this->debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de fora.");
+
                 $settingsTable->incr('game', 'awayVotes');
                 
+                $dataToSend = [
+                    'history' => $this->historyTable->get(),
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                ];
+
+                for ($i = 0; $i < $this->workerQuantity; $i++) {
+                    if ($i === $server->worker_id) {
+                        continue;
+                    }
+
+                    $server->sendMessage(json_encode($dataToSend), $i);
+                }
+
                 foreach ($server->connections as $fd) {
-                    $dataToSend = [
-                        'history' => $this->getHistory(),
-                        'game' => $settingsTable->get('game'),
-                        'stats' => $this->getAllStats($statsTable),
-                    ];
                     $server->push($fd, json_encode($dataToSend));
                 }
 
@@ -319,23 +364,13 @@ class MyServer
             }
         });
 
-        $ws->on('close', function (Server $server, int $fd): void {
-            echo "connection close: {$fd}\n";
-            $this->debugLog("[Server] Connection close: {$fd}");
+        $ws->on('close', function ($server, int $fd): void {
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has disconnected: {$fd}");
+
+            $this->playersTable->remove($fd);
         });
 
         $ws->start();
-    }
-    
-    private function canVote(int $fd): bool
-    {
-        // Se não há registro de último voto, pode votar
-        if (!isset($this->lastVoteTimes[$fd])) {
-            return true;
-        }
-
-        $elapsed = time() - $this->lastVoteTimes[$fd];
-        return $elapsed >= $this->voteCooldown;
     }
 
     private function getRandomTeam(): array
@@ -431,18 +466,19 @@ class MyServer
         return $stats;
     }
 
-    private function debugLog(... $items): void
+    private function debugLog($item): void
     {
         if (! $this->debugLog) {
             return;
         }
 
-        foreach ($items as $item) {
+        // if can be print out as string
+        if (is_scalar($item)) {
             $date = date('Y-m-d H:i:s');
-
-            echo "[{$date}] [DEBUG] ";
-            print_r($item);
-            echo "\n";
+            echo "[{$date}] [DEBUG] {$item}\n";
+            return;
+        } else {
+            var_dump($item);
         }
     }
 }
