@@ -300,12 +300,21 @@ class MyServer
             
                 $settingsTable->incr('game', 'homeVotes');
 
+                $dataToSend = [
+                    'history' => $this->historyTable->get(),
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                ];
+
+                for ($i = 0; $i < $this->workerQuantity; $i++) {
+                    if ($i === $server->worker_id) {
+                        continue;
+                    }
+
+                    $server->sendMessage(json_encode($dataToSend), $i);
+                }
+
                 foreach ($server->connections as $fd) {
-                    $dataToSend = [
-                        'history' => $this->historyTable->get(),
-                        'game' => $settingsTable->get('game'),
-                        'stats' => $this->getAllStats($statsTable),
-                    ];
                     $server->push($fd, json_encode($dataToSend));
                 }
 
@@ -333,12 +342,21 @@ class MyServer
 
                 $settingsTable->incr('game', 'awayVotes');
                 
+                $dataToSend = [
+                    'history' => $this->historyTable->get(),
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                ];
+
+                for ($i = 0; $i < $this->workerQuantity; $i++) {
+                    if ($i === $server->worker_id) {
+                        continue;
+                    }
+
+                    $server->sendMessage(json_encode($dataToSend), $i);
+                }
+
                 foreach ($server->connections as $fd) {
-                    $dataToSend = [
-                        'history' => $this->historyTable->get(),
-                        'game' => $settingsTable->get('game'),
-                        'stats' => $this->getAllStats($statsTable),
-                    ];
                     $server->push($fd, json_encode($dataToSend));
                 }
 
