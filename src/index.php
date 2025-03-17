@@ -8,31 +8,23 @@ $server = new App\MyServer();
 $server->main();
 
 /**
- * @TODO - Bug- Normalmente o histórico do jogador pode manter o histórico de 20
- * jogos, porém ao armazenar alguns jogos a memória excede e o servidor crasha.
+ * @IDEA - Nova funcionalidade - Escolha de times: Antes de começar a partida, os jogadores
+ * podem escolher em qual time querem jogar. Ao fim da partida o usuário recebe uma pontuação.
  * 
- * @TODO - Bug - TOP 5 Win Rates (Média prioridade): Quando o servidor inicia,
- * ele envia uma lista de times para o frontend de top 5, porém todos eles
- * estão empatados com 0% de winrate, com isto, a ordem na verdade tem 
- * a ver com a ordem que os times foram adicionados na tabela.
- * A task é mudar esse comportamento para algo pensado: seja a lista iniciar vazia
- * e depois ir adicionando a medida que os jogos passem, ou então fazer algo onde todos
- * eles estão empatados em primeiro lugar... algo do tipo, sua escolha.
+ * @IDEA - Perfil persistente: Quando o jogador dê um F5 na tela, seria interessante ele
+ * continuar com a pontuação que ele tinha antes de atualizar a página.
  * 
- * @TODO - Nova funcionalidade - Cronometro (Alta prioridade): Seria interessante implementar
- * um sistema de timing de status do jogo, onde o frontend possa mostrar um cronometro
- * ou uma barra de progresso que mostre o tempo restante para o fim da votação, ou quanto
- * falta para iniciar um jogo. Esse temporizador precisa ser sincronizado para todos os jogadores
- * incluindo jogadores que entram no meio do jogo. Imagine um jogador que entra no meio de
- * uma partida do Aviator e pega a vela já em 12.51x.
+ * @IDEA - Sistema de persistência: Quando desligamos o servidor ou ao fim de cada partida,
+ * nós devemos salvar o estado dos jogadores num arquivo de texto ou banco de dados externo
+ * para que os dados não sejam perdidos, pois atualmente estão só em memória.
  * 
- * @TODO - Nova funcionalidade- Últimos resultados (Baixa prioridade): Implementar uma espécie
- * de histórico de resultados, onde o frontend possa mostrar os últimos 20 jogos que aconteceram
- * e seus resultados pro jogador, semelhante ao histórico do Aviator ou Roleta.
+ * @IDEA - Loja de pontuação: O jogador pode trocar suas moedas por itens cosméticos para
+ * personalizar sua experiência de jogo. As premições estão por definir, mas pode ser tamanho
+ * do emoji de votação, cor diferenciada, maior quantidade de confetes, etc.
  * 
- * @TODO - Melhoria & Segurança - Cooldown de votação (Alta prioridade): Implementar um sistema
- * de cooldown para a votação, onde um jogador só pode votar a cada 1 segundos, evitando que aconteça
- * spam de votos, e não votar em dois times ao mesmo tempo.
+ * @IDEA - Nova funcionalidade - Top 10 Jogadores do dia: Ao fim do dia, os 10 jogadores
+ * com mais pontos são exibidos numa lista de ranking. Pode ser uma tabela ou um modal.
+ * Quem estiver no top 10 ganha um prêmio especial.
  * 
  * @IDEA - Nova funcionalidade - Mecânica de skillcheck: Ao clicar pra votar, o jogador precisa
  * acertar um botão no momento certo para confirmar o voto, caso erre o botão o voto vale menos
