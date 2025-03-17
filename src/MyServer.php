@@ -17,6 +17,10 @@ class MyServer
     private bool $debugLog = true;
 
     private HistoryTable $historyTable;
+    
+    private int $voteCooldown = 1;
+    
+    private array $lastVoteTimes = [];
 
     private PlayersTable $playersTable;
 
@@ -280,8 +284,25 @@ class MyServer
             }
 
             if ($frame->data === 'vote-home') {
-                $this->debugLog("[Worker {$server->worker_id}] [Server] The client voted for home team: {$frame->fd}");
+                
+                // Pega o estado atual do jogo
+                $game = $settingsTable->get('game');
+                // Vefica se o jogo está em andamento
+                if ($game['status'] !== 'running') {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    return;
+                }
+                
+                if (!$this->canVote($frame->fd)) {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                    return;
+                }
 
+                $this->debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de casa.");
+            
+                // Registra o tempo do último voto
+                $this->lastVoteTimes[$frame->fd] = time();
+            
                 $settingsTable->incr('game', 'homeVotes');
 
                 foreach ($server->connections as $fd) {
@@ -297,8 +318,25 @@ class MyServer
             }
 
             if ($frame->data === 'vote-away') {
-                $this->debugLog("[Worker {$server->worker_id}] [Server] The client voted for away team: {$frame->fd}");
-
+                
+                // Pega o estado atual do jogo
+                $game = $settingsTable->get('game');
+                // Vefica se o jogo está em andamento
+                if ($game['status'] !== 'running') {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    return;
+                }
+                
+                if (!$this->canVote($frame->fd)) {
+                    $this->debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                    return;
+                }
+            
+                $this->debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de fora.");
+            
+                // Registra o tempo do último voto
+                $this->lastVoteTimes[$frame->fd] = time();
+            
                 $settingsTable->incr('game', 'awayVotes');
                 
                 foreach ($server->connections as $fd) {
@@ -321,6 +359,17 @@ class MyServer
         });
 
         $ws->start();
+    }
+    
+    private function canVote(int $fd): bool
+    {
+        // Se não há registro de último voto, pode votar
+        if (!isset($this->lastVoteTimes[$fd])) {
+            return true;
+        }
+
+        $elapsed = time() - $this->lastVoteTimes[$fd];
+        return $elapsed >= $this->voteCooldown;
     }
 
     private function getRandomTeam(): array
