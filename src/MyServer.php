@@ -7,6 +7,7 @@ namespace App;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
 use Swoole\Http\Request;
+use Swoole\Http\Response;
 use Swoole\Table;
 use Swoole\Timer;
 use Swoole\WebSocket\Frame;
@@ -20,9 +21,9 @@ class MyServer
 
     private PlayersTable $playersTable;
 
-    private int $workerQuantity = 8;
+    private int $workerQuantity = 1;
 
-    private const PHASE_DURATION_WAITING = 6;
+    private const PHASE_DURATION_WAITING = 3;
 
     private const PHASE_DURATION_RUNNING = 10;
 
@@ -60,6 +61,8 @@ class MyServer
         $this->historyTable = new HistoryTable();
 
         $this->playersTable = new PlayersTable();
+
+        // xdebug_break();
 
         // Após criar a tabela $statsTable
         foreach ($this->getTeams() as $team) {
@@ -131,14 +134,14 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($server->connections as $player) {
+                        foreach ($server->connections as $fd) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
 
-                            $server->push($player['fd'], json_encode($dataToSend));
+                            $server->push($fd, json_encode($dataToSend));
                         }
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
@@ -169,14 +172,14 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($server->connections as $player) {
+                        foreach ($server->connections as $fd) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
 
-                            $server->push($player['fd'], json_encode($dataToSend));
+                            $server->push($fd, json_encode($dataToSend));
                         }
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
@@ -231,14 +234,14 @@ class MyServer
                             $server->sendMessage(json_encode($dataToSend), $i);
                         }
 
-                        foreach ($server->connections as $player) {
+                        foreach ($server->connections as $fd) {
                             $dataToSend = [
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                             ];
 
-                            $server->push($player['fd'], json_encode($dataToSend));
+                            $server->push($fd, json_encode($dataToSend));
                         }
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
@@ -251,21 +254,92 @@ class MyServer
         });
 
         $ws->on('pipeMessage', function (Server $server, int $srcWorkerId, mixed $message): void {
-            $this->debugLog("[Worker {$server->worker_id}] [Server] Sending message to all (except {$srcWorkerId})");
+            $this->debugLog("[Worker {$server->worker_id}] [Server] " . count($server->connections) . " Sending message to all (except {$srcWorkerId})");
 
             foreach ($server->connections as $fd) {
+                var_dump('dumper', $fd);
                 $server->push($fd, $message);
             }
         });
 
-        $ws->on('open', function (Server $server, Request $request): void {
-            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->fd}");
+        // $ws->on('handshake', function (Request $request, Response $response) use ($ws): bool {
+        //     $secWebSocketKey = $request->header['sec-websocket-key'];
+        //     $patten = '#^[+/0-9A-Za-z]{21}[AQgw]==$#';
 
-            $this->playersTable->add($request->fd);
+        //     // At this stage if the socket request does not meet custom requirements, you can ->end() it here and return false...
+
+        //     // Websocket handshake connection algorithm verification
+        //     if (
+        //         0 === preg_match($patten, $secWebSocketKey) 
+        //         || 16 !== strlen(base64_decode($secWebSocketKey))
+        //     ) {
+        //         $response->end();
+        //         return false;
+        //     }
+
+        //     $result = $this->playersTable->add(
+        //         fd: $request->fd,
+        //         userId: $request->server['path_info'],
+        //     );
+
+        //     if (! $result) {
+        //         $this->debugLog("[Worker {$ws->worker_id}] [Server] Player has connected but we are full or player is already connected: {$request->fd}");
+        //         $response->end();
+        //         return false;
+        //     }
+
+        //     $key = base64_encode(
+        //         sha1("{$request->header['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11", true)
+        //     );
+
+        //     $headers = [
+        //         'Upgrade' => 'websocket',
+        //         'Connection' => 'Upgrade',
+        //         'Sec-WebSocket-Accept' => $key,
+        //         'Sec-WebSocket-Version' => '13',
+        //     ];
+
+        //     // WebSocket connection to 'ws://127.0.0.1:9501/'
+        //     // Failed: Error during WebSocket handshake:
+        //     // Response must not include 'Sec-WebSocket-Protocol' header if not present in request: websocket
+        //     if(isset($request->header['sec-websocket-protocol'])) {
+        //         $headers['Sec-WebSocket-Protocol'] = $request->header['sec-websocket-protocol'];
+        //     }
+
+        //     foreach($headers as $key => $val) {
+        //         $response->header($key, $val);
+        //     }
+
+        //     $response->status(101);
+        //     $response->end();
+
+        //     return true;
+        // });
+
+        $ws->on('open', function (Server $server, Request $request): void {
+            echo "Open: " . time() . "\n";
+            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->server['path_info']} - {$request->fd}");
+
+            $result = $this->playersTable->add(
+                fd: $request->fd,
+                userId: $request->server['path_info'],
+            );
+
+            if (! $result) {
+                $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected but we are full or player is already connected: {$request->fd}");
+                // $server->close($request->fd);
+            }
         });
 
         $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
             // $this->debugLog("[Server] Received message: {$frame->data}");
+
+            // $player = $this->playersTable->findByFd($frame->fd);
+
+            // if ($player['connected'] === 0) {
+            //     $this->debugLog("[Worker {$server->worker_id}] [Server] Player is not connected: {$frame->fd}");
+            //     return;
+            // }
 
             if ($frame->data === 'send-state') {
                 $this->debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
@@ -364,8 +438,8 @@ class MyServer
             }
         });
 
-        $ws->on('close', function ($server, int $fd): void {
-            $this->debugLog("[Worker {$server->worker_id}] [Server] Player has disconnected: {$fd}");
+        $ws->on('close', function ($server, int $fd) use ($ws): void {
+            $this->debugLog("[Worker {$server->worker_id} - {$ws->worker_id}] [Server] Player has disconnected: {$fd}");
 
             $this->playersTable->remove($fd);
         });

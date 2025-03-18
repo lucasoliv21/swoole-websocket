@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tables;
 
-use Exception;
+use App\Exceptions\PlayerNotFoundException;
+use App\Exceptions\PlayerOfflineException;
 use Swoole\Table;
 
 final class PlayersTable
@@ -19,55 +20,118 @@ final class PlayersTable
     {
         $this->table = new Table(self::MAX_PLAYERS);
 
+        $this->table->column('id', Table::TYPE_STRING, 26);
         $this->table->column('fd', Table::TYPE_INT);
         $this->table->column('name', Table::TYPE_STRING, 50);
         $this->table->column('lastVotedAt', Table::TYPE_INT);
+        $this->table->column('connected', Table::TYPE_INT);
+        $this->table->column('lastLoginAt', Table::TYPE_INT);
 
         $this->table->create();
     }
 
-    public function find($fd): array
+    public function find(string $userId, bool $searchOffline = false): array
     {
-        $player = $this->table->get("players_{$fd}");
+        $player = $this->table->get("$userId");
 
         if ($player === false) {
-            throw new Exception("Player with fd {$fd} not found");
+            throw new PlayerNotFoundException($userId, 'fd');
+        }
+
+        if (! $searchOffline && $player['connected'] === 0) {
+            throw new PlayerOfflineException($userId);
         }
 
         return $player;
     }
 
-    public function get(): array
+    public function findByFd(int $fd): array
     {
-        $result = [];
+        $result = null;
 
         foreach ($this->table as $row) {
-            $result[] = $row;
+            if ($row['fd'] !== $fd) {
+                continue;
+            }
+
+            $result = $row;
+            break;
+        }
+
+        if ($result === null) {
+            throw new PlayerNotFoundException($fd, 'fd');
         }
 
         return $result;
     }
 
-    public function add(int $fd): bool
+    public function get(bool $searchOffline = false): array
     {
-        if (count($this->table) >= self::MAX_PLAYERS) {
+        $result = [];
+
+        foreach ($this->table as $row) {
+            if ($searchOffline) {
+                $result[] = $row;
+            } else {
+                if ($row['connected'] === 1) {
+                    $result[] = $row;
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    public function add(int $fd, string $userId): bool
+    {
+        // TODO - Sanatizar $userId para permitir somente letras e números
+
+        try {
+            $player = $this->find(
+                userId: $userId,
+                searchOffline: true
+            );
+        } catch (PlayerNotFoundException) {
+            $player = null;
+        }
+
+        if (! $player) {
+            if (count($this->table) >= self::MAX_PLAYERS) {
+                // Já atingimos o máximo de jogadores na memória
+                return false;
+            }
+
+            $player = [
+                'id' => $userId,
+                'fd' => $fd,
+                'name' => "Jogador",
+                'connected' => 0,
+            ];
+
+            echo "Novo usuário se conectou a base!\n";
+        } else {
+            echo "Usuário já existente se conectou a base!\n";
+        }
+
+        if ($player['connected'] === 1) {
+            // Player já está logado
             return false;
         }
 
-        $player = [
-            'fd' => $fd,
-            'name' => "Player {$fd}",
-            'lastVotedAt' => time(),
-        ];
+        $player['fd'] = $fd;
+        $player['connected'] = 1;
+        $player['lastLoginAt'] = time();
 
-        $this->table->set("players_{$fd}", $player);
+        $this->table->set($userId, $player);
+
+        print_r($player);
 
         return true;
     }
 
     public function vote(int $fd): bool
     {
-        $player = $this->find($fd);
+        $player = $this->findByFd($fd);
 
         $elapsed = time() - $player['lastVotedAt'];
 
@@ -81,19 +145,32 @@ final class PlayersTable
 
     public function remove(int $fd): void
     {
-        $this->table->del("players_{$fd}");
+        try {
+            $player = $this->findByFd($fd);
+        } catch (PlayerNotFoundException) {
+            // Se o player não foi encontrado, então ele não
+            // chegou a logar. Isso significa que o server tá cheio
+            // ou usuário tentou abrir outra aba.
+            return;
+        }
+
+        if ($player['connected'] === 0) {
+            throw new PlayerOfflineException($player['id']);
+        }
+
+        $this->table->decr($player['id'], 'connected');
     }
 
     private function setItems(int $fd, array $payload): void
     {
-        $player = $this->table->get("players_{$fd}");
+        $player = $this->findByFd($fd);
 
         if ($player === false) {
-            throw new Exception("Player with fd {$fd} not found");
+            throw new PlayerNotFoundException($fd, 'fd');
         }
 
         $player = array_merge($player, $payload);
 
-        $this->table->set("players_{$fd}", $player);
+        $this->table->set($player['id'], $player);
     }
 }
