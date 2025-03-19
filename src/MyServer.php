@@ -21,7 +21,7 @@ class MyServer
 
     private PlayersTable $playersTable;
 
-    private int $workerQuantity = 1;
+    private int $workerQuantity = 8;
 
     private const PHASE_DURATION_WAITING = 3;
 
@@ -317,7 +317,6 @@ class MyServer
         // });
 
         $ws->on('open', function (Server $server, Request $request): void {
-            echo "Open: " . time() . "\n";
             $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected: {$request->server['path_info']} - {$request->fd}");
 
             $result = $this->playersTable->add(
@@ -327,7 +326,7 @@ class MyServer
 
             if (! $result) {
                 $this->debugLog("[Worker {$server->worker_id}] [Server] Player has connected but we are full or player is already connected: {$request->fd}");
-                // $server->close($request->fd);
+                $server->close($request->fd);
             }
         });
 
