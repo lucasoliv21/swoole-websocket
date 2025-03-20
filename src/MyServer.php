@@ -31,7 +31,7 @@ class MyServer
 
     public function main(): void
     {
-        $ws = new Server('0.0.0.0', 9502);
+        $ws = new Server('0.0.0.0', 9502, SWOOLE_PROCESS);
 
         $ws->set([
             'hook_flags' => SWOOLE_HOOK_ALL,
