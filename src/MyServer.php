@@ -72,10 +72,20 @@ class MyServer
         }
 
         $ws->on('start', function (Server $server): void {
-            $this->debugLog("[Worker {$server->worker_id}] [Server] Started!");
+            $this->debugLog("[Master] [Server] Started!");
+
+            swoole_set_process_name("swoole-websocket: master");
+        });
+
+        $ws->on('ManagerStart', function (Server $server): void {
+            $this->debugLog("[Manager] [Server] Started!");
+
+            swoole_set_process_name("swoole-websocket: manager");
         });
 
         $ws->on('WorkerStart', function (Server $server, int $workerId) use ($settingsTable, $statsTable): void {
+            swoole_set_process_name("swoole-websocket: worker {$workerId}");
+
             // $this->debugLog("[Worker] {$workerId} Started!");
 
             if ($server->taskworker) {
