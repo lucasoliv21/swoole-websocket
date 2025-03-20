@@ -71,7 +71,7 @@ class MyServer
             ]);
         }
 
-        $ws->on('start', function (Server $server) use ($settingsTable, $statsTable): void {
+        $ws->on('start', function (Server $server): void {
             $this->debugLog("[Worker {$server->worker_id}] [Server] Started!");
         });
 
