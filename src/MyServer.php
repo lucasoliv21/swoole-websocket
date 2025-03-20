@@ -7,9 +7,7 @@ namespace App;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
 use Swoole\Http\Request;
-use Swoole\Http\Response;
 use Swoole\Table;
-use Swoole\Timer;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 
