@@ -8,14 +8,9 @@ $server = new App\MyServer();
 $server->main();
 
 /**
- * @TODO - BUG - Quando usamos multiplos workers, o sistema de reconexão faz com que o navegador
- * do usuário trave e ele precise atualizar a página para voltar.
  * 
  * @IDEA - Nova funcionalidade - Escolha de times: Antes de começar a partida, os jogadores
  * podem escolher em qual time querem jogar. Ao fim da partida o usuário recebe uma pontuação.
- * 
- * @TODO - Fazer validação de path pro jogador, só permitir login se ele cumprir
- * uma série de requisitos, como por exemplo: cumprimento, caracteres especiais, etc.
  * 
  * @TODO - Ao fechar a conexão com o jogador, precisamos enviar uma espécie de popup ou alerta antes
  * 
