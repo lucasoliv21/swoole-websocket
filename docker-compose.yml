@@ -1,0 +1,18 @@
+version: '3'
+
+services:
+  app-swoole:
+    image: phpswoole/swoole:6.0.1-php8.4
+    container_name: app-swoole
+    ports:
+      - "9502:9502"
+    volumes:
+      - .:/var/www
+      # supervisor config
+      - ./.docker/supervisor:/etc/supervisor/service.d
+    working_dir: /var/www
+    #command: php src/index.php
+    environment:
+      DISABLE_DEFAULT_SERVER: 1
+      AUTORELOAD_PROGRAMS: "swoole-app"
+      AUTORELOAD_ANY_FILES: 1
