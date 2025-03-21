@@ -73,13 +73,13 @@ class MyServer
             ]);
         }
 
-        $ws->on('start', function (Server $server): void {
+        $ws->on('start', function (): void {
             $this->debugLog("[Master] [Server] Started!");
 
             swoole_set_process_name("swoole-websocket: master");
         });
 
-        $ws->on('ManagerStart', function (Server $server): void {
+        $ws->on('ManagerStart', function (): void {
             $this->debugLog("[Manager] [Server] Started!");
 
             swoole_set_process_name("swoole-websocket: manager");
@@ -87,8 +87,6 @@ class MyServer
 
         $ws->on('WorkerStart', function (Server $server, int $workerId) use ($settingsTable, $statsTable): void {
             swoole_set_process_name("swoole-websocket: worker {$workerId}");
-
-            // $this->debugLog("[Worker] {$workerId} Started!");
 
             if ($server->taskworker) {
                 $this->debugLog("[TaskWorker] {$workerId} Started!");
@@ -99,7 +97,7 @@ class MyServer
             $this->debugLog("[Worker {$workerId}] Started!");
 
             if ($workerId === 0) {
-                // go(function () use ($settingsTable, $statsTable, $server): void {
+                go(function () use ($settingsTable, $statsTable, $server): void {
 
                     $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
     
@@ -259,7 +257,7 @@ class MyServer
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
                     }
-                // });
+                });
             }
         });
 
