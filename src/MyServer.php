@@ -129,20 +129,12 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Sending message to everyone on worker 0.");
 
-                        $dataToSend = [
-                            'history' => $this->historyTable->get(),
-                            'game' => $settingsTable->get('game'),
-                            'stats' => $this->getAllStats($statsTable),
-                        ];
-
                         foreach ($server->connections as $fd) {
-                            $dataToSend = [
+                            $server->push($fd, json_encode([
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                            ];
-
-                            $server->push($fd, json_encode($dataToSend));
+                            ]));
                         }
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
@@ -158,21 +150,13 @@ final class MyServer
                         ]);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
-    
-                        $dataToSend = [
-                            'history' => $this->historyTable->get(),
-                            'game' => $settingsTable->get('game'),
-                            'stats' => $this->getAllStats($statsTable),
-                        ];
 
                         foreach ($server->connections as $fd) {
-                            $dataToSend = [
+                            $server->push($fd, json_encode([
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                            ];
-
-                            $server->push($fd, json_encode($dataToSend));
+                            ]));
                         }
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
@@ -212,24 +196,17 @@ final class MyServer
                         $statsTable->set($awayName, $statsAway);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
-    
-                        $dataToSend = [
-                            'history' => $this->historyTable->get(),
-                            'game' => $settingsTable->get('game'),
-                            'stats' => $this->getAllStats($statsTable),
-                        ];
 
                         foreach ($server->connections as $fd) {
-                            $dataToSend = [
+                            $server->push($fd, json_encode([
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                            ];
-
-                            $server->push($fd, json_encode($dataToSend));
+                            ]));
                         }
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
+                        
                         sleep(self::PHASE_DURATION_FINISHED);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
@@ -319,12 +296,12 @@ final class MyServer
             if ($frame->data === 'send-state') {
                 debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
 
-                $dataToSend = [
+                $server->push($frame->fd, json_encode([
                     'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
-                ];
-                $server->push($frame->fd, json_encode($dataToSend));
+                ]));
+
                 return;
             }
 
@@ -349,14 +326,12 @@ final class MyServer
             
                 $settingsTable->incr('game', 'homeVotes');
 
-                $dataToSend = [
-                    'history' => $this->historyTable->get(),
-                    'game' => $settingsTable->get('game'),
-                    'stats' => $this->getAllStats($statsTable),
-                ];
-
                 foreach ($server->connections as $fd) {
-                    $server->push($fd, json_encode($dataToSend));
+                    $server->push($fd, json_encode([
+                        'history' => $this->historyTable->get(),
+                        'game' => $settingsTable->get('game'),
+                        'stats' => $this->getAllStats($statsTable),
+                    ]));
                 }
 
                 return;
@@ -382,15 +357,13 @@ final class MyServer
                 debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de fora.");
 
                 $settingsTable->incr('game', 'awayVotes');
-                
-                $dataToSend = [
-                    'history' => $this->historyTable->get(),
-                    'game' => $settingsTable->get('game'),
-                    'stats' => $this->getAllStats($statsTable),
-                ];
 
                 foreach ($server->connections as $fd) {
-                    $server->push($fd, json_encode($dataToSend));
+                    $server->push($fd, json_encode([
+                        'history' => $this->historyTable->get(),
+                        'game' => $settingsTable->get('game'),
+                        'stats' => $this->getAllStats($statsTable),
+                    ]));
                 }
 
                 return;
