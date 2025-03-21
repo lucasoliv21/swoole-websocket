@@ -16,9 +16,6 @@ $server->main();
  * 
  * @TODO - Sistema de banimento e/ou suspensão de jogadores que já estão na memória.
  * 
- * @TODO - Sempre quando o servidor iniciar, nós puxamos os dados dos times direto de uma API externa
- * se não conseguir, usamos o que temos no local.
- * 
  * @IDEA - Nova funcionalidade - Sistema de som: Sempre ter uma música de fundo tocando amena
  * e quando um jogador votar, tocar um som de chute de futebol (lembre de mudar o pitch do som a cada clique)
  * e no fim de partida/início também.
