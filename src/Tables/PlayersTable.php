@@ -124,8 +124,6 @@ final class PlayersTable
 
         $this->table->set($userId, $player);
 
-        print_r($player);
-
         return true;
     }
 
