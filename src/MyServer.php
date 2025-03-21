@@ -34,6 +34,7 @@ class MyServer
         $ws->set([
             'hook_flags' => SWOOLE_HOOK_ALL,
             'worker_num' => $this->workerQuantity,
+            'dispatch_mode' => SWOOLE_DISPATCH_FDMOD,
         ]);
 
         $settingsTable = new Table(1024);
@@ -97,7 +98,7 @@ class MyServer
             $this->debugLog("[Worker {$workerId}] Started!");
 
             if ($workerId === 0) {
-                go(function () use ($settingsTable, $statsTable, $server): void {
+                // go(function () use ($settingsTable, $statsTable, $server): void {
 
                     $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
     
@@ -134,13 +135,13 @@ class MyServer
                             'stats' => $this->getAllStats($statsTable),
                         ];
 
-                        for ($i = 0; $i < $this->workerQuantity; $i++) {
-                            if ($i === $server->worker_id) {
-                                continue;
-                            }
+                        // for ($i = 0; $i < $this->workerQuantity; $i++) {
+                        //     if ($i === $server->worker_id) {
+                        //         continue;
+                        //     }
 
-                            $server->sendMessage(json_encode($dataToSend), $i);
-                        }
+                        //     $server->sendMessage(json_encode($dataToSend), $i);
+                        // }
 
                         foreach ($server->connections as $fd) {
                             $dataToSend = [
@@ -172,13 +173,13 @@ class MyServer
                             'stats' => $this->getAllStats($statsTable),
                         ];
 
-                        for ($i = 0; $i < $this->workerQuantity; $i++) {
-                            if ($i === $server->worker_id) {
-                                continue;
-                            }
+                        // for ($i = 0; $i < $this->workerQuantity; $i++) {
+                        //     if ($i === $server->worker_id) {
+                        //         continue;
+                        //     }
 
-                            $server->sendMessage(json_encode($dataToSend), $i);
-                        }
+                        //     $server->sendMessage(json_encode($dataToSend), $i);
+                        // }
 
                         foreach ($server->connections as $fd) {
                             $dataToSend = [
@@ -234,13 +235,13 @@ class MyServer
                             'stats' => $this->getAllStats($statsTable),
                         ];
 
-                        for ($i = 0; $i < $this->workerQuantity; $i++) {
-                            if ($i === $server->worker_id) {
-                                continue;
-                            }
+                        // for ($i = 0; $i < $this->workerQuantity; $i++) {
+                        //     if ($i === $server->worker_id) {
+                        //         continue;
+                        //     }
 
-                            $server->sendMessage(json_encode($dataToSend), $i);
-                        }
+                        //     $server->sendMessage(json_encode($dataToSend), $i);
+                        // }
 
                         foreach ($server->connections as $fd) {
                             $dataToSend = [
@@ -257,18 +258,17 @@ class MyServer
     
                         $this->debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
                     }
-                });
+                // });
             }
         });
 
-        $ws->on('pipeMessage', function (Server $server, int $srcWorkerId, mixed $message): void {
-            $this->debugLog("[Worker {$server->worker_id}] [Server] " . count($server->connections) . " Sending message to all (except {$srcWorkerId})");
+        // $ws->on('pipeMessage', function (Server $server, int $srcWorkerId, mixed $message): void {
+        //     $this->debugLog("[Worker {$server->worker_id}] [Server] " . count($server->connections) . " Sending message to all (except {$srcWorkerId})");
 
-            foreach ($server->connections as $fd) {
-                var_dump('dumper', $fd);
-                $server->push($fd, $message);
-            }
-        });
+        //     foreach ($server->connections as $fd) {
+        //         $server->push($fd, $message);
+        //     }
+        // });
 
         // $ws->on('handshake', function (Request $request, Response $response) use ($ws): bool {
         //     $secWebSocketKey = $request->header['sec-websocket-key'];
@@ -387,13 +387,13 @@ class MyServer
                     'stats' => $this->getAllStats($statsTable),
                 ];
 
-                for ($i = 0; $i < $this->workerQuantity; $i++) {
-                    if ($i === $server->worker_id) {
-                        continue;
-                    }
+                // for ($i = 0; $i < $this->workerQuantity; $i++) {
+                //     if ($i === $server->worker_id) {
+                //         continue;
+                //     }
 
-                    $server->sendMessage(json_encode($dataToSend), $i);
-                }
+                //     $server->sendMessage(json_encode($dataToSend), $i);
+                // }
 
                 foreach ($server->connections as $fd) {
                     $server->push($fd, json_encode($dataToSend));
@@ -429,13 +429,13 @@ class MyServer
                     'stats' => $this->getAllStats($statsTable),
                 ];
 
-                for ($i = 0; $i < $this->workerQuantity; $i++) {
-                    if ($i === $server->worker_id) {
-                        continue;
-                    }
+                // for ($i = 0; $i < $this->workerQuantity; $i++) {
+                //     if ($i === $server->worker_id) {
+                //         continue;
+                //     }
 
-                    $server->sendMessage(json_encode($dataToSend), $i);
-                }
+                //     $server->sendMessage(json_encode($dataToSend), $i);
+                // }
 
                 foreach ($server->connections as $fd) {
                     $server->push($fd, json_encode($dataToSend));
