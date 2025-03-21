@@ -23,9 +23,6 @@ $server->main();
  * e quando um jogador votar, tocar um som de chute de futebol (lembre de mudar o pitch do som a cada clique)
  * e no fim de partida/início também.
  * 
- * @IDEA - Perfil persistente: Quando o jogador dê um F5 na tela, seria interessante ele
- * continuar com a pontuação que ele tinha antes de atualizar a página.
- * 
  * @IDEA - Sistema de persistência: Quando desligamos o servidor ou ao fim de cada partida,
  * nós devemos salvar o estado dos jogadores num arquivo de texto ou banco de dados externo
  * para que os dados não sejam perdidos, pois atualmente estão só em memória.
