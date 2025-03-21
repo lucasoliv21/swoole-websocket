@@ -62,8 +62,6 @@ class MyServer
 
         $this->playersTable = new PlayersTable();
 
-        // xdebug_break();
-
         // Após criar a tabela $statsTable
         foreach ($this->getTeams() as $team) {
             $statsTable->set($team['name'], [
