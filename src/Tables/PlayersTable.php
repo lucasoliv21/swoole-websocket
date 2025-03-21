@@ -84,7 +84,7 @@ final class PlayersTable
 
     public function add(int $fd, string $userId): bool
     {
-        // TODO - Sanatizar $userId para permitir somente letras e números
+        $userId = preg_replace('/[^a-zA-Z0-9]/', '', $userId);
 
         try {
             $player = $this->find(
