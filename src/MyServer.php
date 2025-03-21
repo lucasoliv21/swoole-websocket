@@ -53,7 +53,7 @@ final class MyServer
         $settingsTable->column('phaseDuration', Table::TYPE_INT);
         $settingsTable->create();
         
-        $statsTable = new Table(1024);
+        $statsTable = new Table(0);
         $statsTable->column('teamId', Table::TYPE_INT);
         $statsTable->column('played', Table::TYPE_INT);
         $statsTable->column('won', Table::TYPE_INT);
@@ -182,7 +182,7 @@ final class MyServer
                         $statsHome = $statsTable->get($homeName);
                         $statsAway = $statsTable->get($awayName);
                         
-                        $statsHome['played']++;
+                        $statsHome['played']--;
                         $statsAway['played']++;
     
                         // 4) Descobrimos quem ganhou
@@ -326,13 +326,13 @@ final class MyServer
             
                 $settingsTable->incr('game', 'homeVotes');
 
-                foreach ($server->connections as $fd) {
-                    $server->push($fd, json_encode([
-                        'history' => $this->historyTable->get(),
-                        'game' => $settingsTable->get('game'),
-                        'stats' => $this->getAllStats($statsTable),
-                    ]));
-                }
+                // foreach ($server->connections as $fd) {
+                //     $server->push($fd, json_encode([
+                //         'history' => $this->historyTable->get(),
+                //         'game' => $settingsTable->get('game'),
+                //         'stats' => $this->getAllStats($statsTable),
+                //     ]));
+                // }
 
                 return;
             }
