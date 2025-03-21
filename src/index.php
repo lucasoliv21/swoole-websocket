@@ -8,8 +8,20 @@ $server = new App\MyServer();
 $server->main();
 
 /**
+ * 
  * @IDEA - Nova funcionalidade - Escolha de times: Antes de começar a partida, os jogadores
  * podem escolher em qual time querem jogar. Ao fim da partida o usuário recebe uma pontuação.
+ * 
+ * @TODO - Ao fechar a conexão com o jogador, precisamos enviar uma espécie de popup ou alerta antes
+ * 
+ * @TODO - Sistema de banimento e/ou suspensão de jogadores que já estão na memória.
+ * 
+ * @TODO - Sempre quando o servidor iniciar, nós puxamos os dados dos times direto de uma API externa
+ * se não conseguir, usamos o que temos no local.
+ * 
+ * @IDEA - Nova funcionalidade - Sistema de som: Sempre ter uma música de fundo tocando amena
+ * e quando um jogador votar, tocar um som de chute de futebol (lembre de mudar o pitch do som a cada clique)
+ * e no fim de partida/início também.
  * 
  * @IDEA - Perfil persistente: Quando o jogador dê um F5 na tela, seria interessante ele
  * continuar com a pontuação que ele tinha antes de atualizar a página.
