@@ -4,7 +4,10 @@
         "psr-4": {
             "Lucascesardeoliveiradantas\\WebsocketSwoole\\": "src/",
             "App\\": "src/"
-        }
+        },
+        "files": [
+            "src/Helpers/functions.php"
+        ]
     },
     "authors": [
         {
