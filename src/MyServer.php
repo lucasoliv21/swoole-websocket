@@ -24,11 +24,11 @@ final class MyServer
 
     private int $workerQuantity = 8;
 
-    private const PHASE_DURATION_WAITING = 3;
+    private const PHASE_DURATION_WAITING = 6;
 
-    private const PHASE_DURATION_RUNNING = 3;
+    private const PHASE_DURATION_RUNNING = 10;
 
-    private const PHASE_DURATION_FINISHED = 3;
+    private const PHASE_DURATION_FINISHED = 6;
 
     public function main(): void
     {
@@ -315,6 +315,32 @@ final class MyServer
                     'stats' => $this->getAllStats($statsTable),
                     'player' => $this->playersTable->findByFd($frame->fd, true),
                 ]));
+
+                return;
+            }
+
+            if (in_array($frame->data, ['select-home', 'select-away'])) {
+                // debugLog("[Worker {$server->worker_id}] [Server] Player has voted: {$frame->data}");
+                
+                if ($settingsTable->get('game', 'status') !== 'waiting') {
+                    debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou escolher o time mas o jogo não está no início.");
+                    return;
+                }
+
+                $team = $frame->data === 'select-home' 
+                    ? $settingsTable->get('game', 'homeName') 
+                    : $settingsTable->get('game', 'awayName');
+
+                $this->playersTable->selectTeam($frame->fd, $team);
+               
+                $server->push($frame->fd, json_encode([
+                    'history' => $this->historyTable->get(),
+                    'game' => $settingsTable->get('game'),
+                    'stats' => $this->getAllStats($statsTable),
+                    'player' => $this->playersTable->findByFd($frame->fd, true),
+                ]));
+
+                debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} escolheu o time: {$team}");
 
                 return;
             }
