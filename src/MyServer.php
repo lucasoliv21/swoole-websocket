@@ -135,6 +135,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
+                                'player' => $this->playersTable->findByFd($fd),
                             ]));
                         }
     
@@ -157,6 +158,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
+                                'player' => $this->playersTable->findByFd($fd),
                             ]));
                         }
     
@@ -207,6 +209,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
+                                'player' => $this->playersTable->findByFd($fd),
                             ]));
                         }
     
@@ -310,6 +313,7 @@ final class MyServer
                     'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
+                    'player' => $this->playersTable->findByFd($frame->fd),
                 ]));
 
                 return;
@@ -341,6 +345,7 @@ final class MyServer
                         'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
+                        'player' => $this->playersTable->findByFd($fd),
                     ]));
                 }
 
@@ -373,6 +378,7 @@ final class MyServer
                         'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
+                        'player' => $this->playersTable->findByFd($fd),
                     ]));
                 }
 
