@@ -135,7 +135,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                                'player' => $this->playersTable->findByFd($fd),
+                                'player' => $this->playersTable->findByFd($fd, true),
                             ]));
                         }
     
@@ -158,7 +158,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                                'player' => $this->playersTable->findByFd($fd),
+                                'player' => $this->playersTable->findByFd($fd, true),
                             ]));
                         }
     
@@ -209,7 +209,7 @@ final class MyServer
                                 'history' => $this->historyTable->get(),
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
-                                'player' => $this->playersTable->findByFd($fd),
+                                'player' => $this->playersTable->findByFd($fd, true),
                             ]));
                         }
     
@@ -313,7 +313,7 @@ final class MyServer
                     'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
-                    'player' => $this->playersTable->findByFd($frame->fd),
+                    'player' => $this->playersTable->findByFd($frame->fd, true),
                 ]));
 
                 return;
@@ -345,7 +345,7 @@ final class MyServer
                         'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
-                        'player' => $this->playersTable->findByFd($fd),
+                        'player' => $this->playersTable->findByFd($fd, true),
                     ]));
                 }
 
@@ -378,7 +378,7 @@ final class MyServer
                         'history' => $this->historyTable->get(),
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
-                        'player' => $this->playersTable->findByFd($fd),
+                        'player' => $this->playersTable->findByFd($fd, true),
                     ]));
                 }
 

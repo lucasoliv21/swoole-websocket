@@ -16,6 +16,12 @@ final class PlayersTable
 
     private const VOTE_COOLDOWN = 1;
 
+    private array $private = [
+        'fd',
+        'connected',
+        'lastLoginAt',
+    ];
+
     public function __construct()
     {
         $this->table = new Table(self::MAX_PLAYERS);
@@ -47,7 +53,7 @@ final class PlayersTable
         return $player;
     }
 
-    public function findByFd(int $fd): array
+    public function findByFd(int $fd, bool $private = false): array
     {
         $result = null;
 
@@ -62,6 +68,12 @@ final class PlayersTable
 
         if ($result === null) {
             throw new PlayerNotFoundException($fd, 'fd');
+        }
+
+        if ($private) {
+            foreach ($this->private as $field) {
+                unset($result[$field]);
+            }
         }
 
         return $result;
@@ -106,7 +118,7 @@ final class PlayersTable
             $player = [
                 'id' => $userId,
                 'fd' => $fd,
-                'name' => "Jogador",
+                'name' => "Jogador {$fd}",
                 'connected' => 0,
             ];
 
