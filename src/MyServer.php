@@ -8,9 +8,11 @@ use App\Services\TeamService;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
 use Swoole\Coroutine;
+use Swoole\Event;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Table;
+use Swoole\Timer;
 use Swoole\WebSocket\Frame;
 use Swoole\WebSocket\Server;
 
@@ -226,6 +228,16 @@ final class MyServer
                     }
                 });
             }
+        });
+        
+
+        $ws->on('WorkerExit', function (Server $server, int $workerId): void {
+            debugLog("[Worker {$workerId}] Exited!");
+
+            //Prevent worker exit timeout issues (similar to die/exit)
+            //@see: https://openswoole.com/docs/modules/swoole-event-exit
+            Timer::clearAll();
+            Event::exit();
         });
 
         $ws->on('handshake', function (Request $request, Response $response) use ($ws): bool {
