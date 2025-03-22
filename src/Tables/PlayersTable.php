@@ -23,6 +23,8 @@ final class PlayersTable
         $this->table->column('id', Table::TYPE_STRING, 26);
         $this->table->column('fd', Table::TYPE_INT);
         $this->table->column('name', Table::TYPE_STRING, 50);
+        $this->table->column('currentTeam', Table::TYPE_INT);
+        $this->table->column('wins', Table::TYPE_INT);
         $this->table->column('lastVotedAt', Table::TYPE_INT);
         $this->table->column('connected', Table::TYPE_INT);
         $this->table->column('lastLoginAt', Table::TYPE_INT);
@@ -157,6 +159,31 @@ final class PlayersTable
         }
 
         $this->table->decr($player['id'], 'connected');
+    }
+
+    public function givePrize(string $winner): void
+    {
+        $players = $this->get();
+
+        foreach ($players as $player) {
+            if ($player['currentTeam'] !== $winner) {
+                continue;
+            }
+
+            $this->table->incr($player['id'], 'wins');
+        }
+    }
+
+    public function cleanUpAfterGame(): void
+    {
+        $players = $this->get();
+
+        foreach ($players as $player) {
+            $this->table->set($player['id'], [
+                'currentTeam' => 0,
+                'lastVotedAt' => 0,
+            ]);
+        }
     }
 
     private function setItems(int $fd, array $payload): void

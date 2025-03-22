@@ -7,6 +7,7 @@ namespace App;
 use App\Services\TeamService;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
+use Swoole\Coroutine;
 use Swoole\Http\Request;
 use Swoole\Http\Response;
 use Swoole\Table;
@@ -25,7 +26,7 @@ final class MyServer
 
     private const PHASE_DURATION_WAITING = 3;
 
-    private const PHASE_DURATION_RUNNING = 10;
+    private const PHASE_DURATION_RUNNING = 3;
 
     private const PHASE_DURATION_FINISHED = 3;
 
@@ -139,7 +140,7 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
     
-                        sleep(self::PHASE_DURATION_WAITING);
+                        Coroutine::sleep(self::PHASE_DURATION_WAITING);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
     
@@ -161,7 +162,7 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
     
-                        sleep(self::PHASE_DURATION_RUNNING);
+                        Coroutine::sleep(self::PHASE_DURATION_RUNNING);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
     
@@ -186,10 +187,14 @@ final class MyServer
                         $statsAway['played']++;
     
                         // 4) Descobrimos quem ganhou
+                        $winner = 'draw';
+
                         if ($homeVotes > $awayVotes) {
                             $statsHome['won']++;
+                            $winner = $gameData['homeName'];
                         } elseif ($awayVotes > $homeVotes) {
                             $statsAway['won']++;
+                            $winner = $gameData['awayName'];
                         } 
     
                         $statsTable->set($homeName, $statsHome);
@@ -207,9 +212,14 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
                         
-                        sleep(self::PHASE_DURATION_FINISHED);
+                        Coroutine::sleep(self::PHASE_DURATION_FINISHED);
     
-                        debugLog("[Worker {$server->worker_id}] [Gameloop] Game loop finished. Restarting...");
+                        debugLog("[Worker {$server->worker_id}] [Gameloop] Game finished. Starting game cleanup!");
+
+                        $this->playersTable->givePrize($winner);
+                        $this->playersTable->cleanUpAfterGame();
+
+                        debugLog("[Worker {$server->worker_id}] [Gameloop] Game cleanup finished! Restarting...");
                     }
                 });
             }
