@@ -358,26 +358,35 @@ final class MyServer
             }
 
             if ($frame->data === 'vote-home') {
-                
-                // Pega o estado atual do jogo
                 $game = $settingsTable->get('game');
-                // Vefica se o jogo está em andamento
-                if ($game['status'] !== 'running') {
-                    debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
-                    return;
-                }
-
-                $result = $this->playersTable->vote($frame->fd);
-
-                if (! $result) {
-                    debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
-                    return;
-                }
-
-                debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de casa.");
             
+                // Verifica se está 'running'
+                if ($game['status'] !== 'running') {
+                    $server->push($frame->fd, json_encode([
+                        'type' => 'vote-response',
+                        'status' => 'not-running',
+                    ]));
+                    return;
+                }
+            
+                $result = $this->playersTable->vote($frame->fd);
+                if (! $result) {
+                    // Está em cooldown
+                    $server->push($frame->fd, json_encode([
+                        'type' => 'vote-response',
+                        'status' => 'cooldown',
+                    ]));
+                    return;
+                }
+            
+                // Se chegou aqui, voto foi aceito
                 $settingsTable->incr('game', 'homeVotes');
-
+            
+                $server->push($frame->fd, json_encode([
+                    'type' => 'vote-response',
+                    'status' => 'accepted',
+                ]));
+            
                 foreach ($server->connections as $fd) {
                     $server->push($fd, json_encode([
                         'history' => $this->historyTable->get(),
@@ -386,30 +395,39 @@ final class MyServer
                         'player' => $this->playersTable->findByFd($fd, true),
                     ]));
                 }
-
                 return;
             }
 
             if ($frame->data === 'vote-away') {
                 // Pega o estado atual do jogo
                 $game = $settingsTable->get('game');
-
-                // Vefica se o jogo está em andamento
+            
+                // Verifica se está 'running'
                 if ($game['status'] !== 'running') {
-                    debugLog("[Worker {$server->worker_id}] [Server] O Jogador: {$frame->fd} tentou votar mas o jogo não está em andamento.");
+                    $server->push($frame->fd, json_encode([
+                        'type' => 'vote-response',
+                        'status' => 'not-running',
+                    ]));
                     return;
                 }
-                
-                $result = $this->playersTable->vote($frame->fd);
 
+                $result = $this->playersTable->vote($frame->fd);
                 if (! $result) {
-                    debugLog("[Worker {$server->worker_id}] [Server] Jogador {$frame->fd} tentou votar mas está em cooldown.");
+                    // Está em cooldown
+                    $server->push($frame->fd, json_encode([
+                        'type' => 'vote-response',
+                        'status' => 'cooldown',
+                    ]));
                     return;
                 }
             
-                debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} votou no time de fora.");
-
+                // Se chegou aqui, voto foi aceito
                 $settingsTable->incr('game', 'awayVotes');
+            
+                $server->push($frame->fd, json_encode([
+                    'type' => 'vote-response',
+                    'status' => 'accepted',
+                ]));
 
                 foreach ($server->connections as $fd) {
                     $server->push($fd, json_encode([
