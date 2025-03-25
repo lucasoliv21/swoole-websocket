@@ -7,6 +7,7 @@ namespace App;
 use App\Services\TeamService;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
+use App\Tables\ShopTable;
 use Swoole\Coroutine;
 use Swoole\Event;
 use Swoole\Http\Request;
@@ -23,6 +24,8 @@ final class MyServer
     private PlayersTable $playersTable;
 
     private TeamService $teamService;
+
+    private ShopTable $shopTable;
 
     private int $workerQuantity = 8;
 
@@ -65,6 +68,8 @@ final class MyServer
         $this->historyTable = new HistoryTable();
 
         $this->playersTable = new PlayersTable();
+
+        $this->shopTable = new ShopTable();
 
         $this->teamService = new TeamService();
 
@@ -138,6 +143,7 @@ final class MyServer
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
+                                'shop' => $this->shopTable->get(),
                             ]));
                         }
     
@@ -161,6 +167,7 @@ final class MyServer
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
+                                'shop' => $this->shopTable->get(),
                             ]));
                         }
     
@@ -212,6 +219,7 @@ final class MyServer
                                 'game' => $settingsTable->get('game'),
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
+                                'shop' => $this->shopTable->get(),
                             ]));
                         }
     
@@ -326,6 +334,7 @@ final class MyServer
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
                     'player' => $this->playersTable->findByFd($frame->fd, true),
+                    'shop' => $this->shopTable->get(),
                 ]));
 
                 return;
@@ -350,6 +359,7 @@ final class MyServer
                     'game' => $settingsTable->get('game'),
                     'stats' => $this->getAllStats($statsTable),
                     'player' => $this->playersTable->findByFd($frame->fd, true),
+                    'shop' => $this->shopTable->get(),
                 ]));
 
                 debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} escolheu o time: {$team}");
@@ -393,6 +403,7 @@ final class MyServer
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                         'player' => $this->playersTable->findByFd($fd, true),
+                        'shop' => $this->shopTable->get(),
                     ]));
                 }
                 return;
@@ -435,6 +446,7 @@ final class MyServer
                         'game' => $settingsTable->get('game'),
                         'stats' => $this->getAllStats($statsTable),
                         'player' => $this->playersTable->findByFd($fd, true),
+                        'shop' => $this->shopTable->get(),
                     ]));
                 }
 
