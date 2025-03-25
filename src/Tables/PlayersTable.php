@@ -145,10 +145,12 @@ final class PlayersTable
     {
         $player = $this->findByFd($fd);
 
-        $elapsed = time() - $player['lastVotedAt'];
+        $time = time();
+
+        $elapsed = $time - $player['lastVotedAt'];
 
         if ($elapsed >= self::VOTE_COOLDOWN) {
-            $this->setItems($fd, ['lastVotedAt' => time()]);
+            $this->setItems($fd, ['lastVotedAt' => $time]);
             return true;
         }
 
