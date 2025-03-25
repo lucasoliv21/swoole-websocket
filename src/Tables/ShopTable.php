@@ -87,12 +87,35 @@ final class ShopTable
         }
     }
 
-    public function get(): array
+    private function isPurchased(int $playerFd, int $itemId): bool
+    {
+        $item = $this->purchaseTable->get((string) $playerFd);
+
+        if (! $item) {
+            return false;
+        }
+
+        foreach ($item as $row) {
+            if ($row['itemId'] === $itemId) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public function get(?int $playerFd = null): array
     {
         $result = [];
 
         foreach ($this->table as $row) {
-            $result[] = $row;
+            $item = $row;
+
+            if ($playerFd) {
+                $item['purchased'] = $this->isPurchased($playerFd, $row['id']);
+            }
+
+            $result[] = $item;
         }
 
         return $result;
