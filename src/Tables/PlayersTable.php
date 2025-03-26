@@ -120,6 +120,7 @@ final class PlayersTable
                 'fd' => $fd,
                 'name' => "Jogador {$fd}",
                 'connected' => 0,
+                'wins' => 0,
             ];
 
             echo "Novo usuário se conectou a base!\n";
@@ -207,6 +208,19 @@ final class PlayersTable
                 'lastVotedAt' => 0,
             ]);
         }
+    }
+
+    public function removeBalance(int $fd, int $amount): bool
+    {
+        $player = $this->findByFd($fd);
+
+        if ($player['wins'] < $amount) {
+            return false;
+        }
+
+        $this->table->decr($player['id'], 'wins', $amount);
+
+        return true;
     }
 
     private function setItems(int $fd, array $payload): void

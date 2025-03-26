@@ -17,7 +17,7 @@ final class ShopTable
     // Make this dynamic. Make no sense limits on purchase.
     private const MAX_PURCHASE = 4098;
 
-    public function __construct()
+    public function __construct(private PlayersTable $playersTable)
     {
         $this->table = new Table(self::MAX_ITEMS);
 
@@ -31,9 +31,7 @@ final class ShopTable
 
         $this->purchaseTable = new Table(self::MAX_PURCHASE);
 
-        $this->purchaseTable->column('id', Table::TYPE_INT);
         $this->purchaseTable->column('userFd', Table::TYPE_INT,);
-        $this->purchaseTable->column('userId', Table::TYPE_STRING, 26);
         $this->purchaseTable->column('itemId', Table::TYPE_INT);
         $this->purchaseTable->column('createdAt', Table::TYPE_INT);
 
@@ -50,35 +48,35 @@ final class ShopTable
                 'name' => 'Votos gigantes',
                 'description' => 'Compre para aumentar o brazão ao votar.',
                 'image' => 'https://placehold.co/120',
-                'price' => 100,
+                'price' => 1,
             ],
             [
                 'id' => 2,
                 'name' => 'Mais votos',
                 'description' => 'Seus votos agora soltam mais confetes para todos verem.',
                 'image' => 'https://placehold.co/120',
-                'price' => 200,
+                'price' => 2,
             ],
             [
                 'id' => 3,
                 'name' => 'AVC',
                 'description' => 'Simplesmente compra e morra.',
                 'image' => 'AVC',
-                'price' => 300,
+                'price' => 3,
             ],
             [
                 'id' => 4,
                 'name' => 'Emojis',
                 'description' => 'Liberados para usar no final da partida.',
                 'image' => 'https://placehold.co/120',
-                'price' => 400,
+                'price' => 4,
             ],
             [
                 'id' => 5,
                 'name' => 'ADM',
                 'description' => 'Torne-se administrador do servidor.',
                 'image' => 'ADM',
-                'price' => 500,
+                'price' => 5,
             ],
         ];
 
@@ -89,16 +87,12 @@ final class ShopTable
 
     private function isPurchased(int $playerFd, int $itemId): bool
     {
-        $item = $this->purchaseTable->get((string) $playerFd);
-
-        if (! $item) {
-            return false;
-        }
-
-        foreach ($item as $row) {
-            if ($row['itemId'] === $itemId) {
-                return true;
+        foreach ($this->purchaseTable as $row) {
+            if ($row['userFd'] !== $playerFd || $row['itemId'] !== $itemId) {
+                continue;
             }
+
+            return true;
         }
 
         return false;
@@ -119,5 +113,24 @@ final class ShopTable
         }
 
         return $result;
+    }
+
+    public function purchase(int $playerFd, int $itemId): bool
+    {
+        $item = $this->table->get((string) $itemId);
+
+        $response = $this->playersTable->removeBalance($playerFd, $item['price']);
+
+        if (! $response) {
+            return false;
+        }
+
+        $this->purchaseTable->set("{$playerFd}-{$itemId}", [
+            'userFd' => $playerFd,
+            'itemId' => $itemId,
+            'createdAt' => time(),
+        ]);
+
+        return true;
     }
 }

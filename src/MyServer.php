@@ -69,7 +69,7 @@ final class MyServer
 
         $this->playersTable = new PlayersTable();
 
-        $this->shopTable = new ShopTable();
+        $this->shopTable = new ShopTable($this->playersTable);
 
         $this->teamService = new TeamService();
 
@@ -317,14 +317,38 @@ final class MyServer
         // });
 
         $ws->on('message', function (Server $server, Frame $frame) use ($settingsTable, $statsTable): void {
-            // debugLog("[Server] Received message: {$frame->data}");
 
-            // $player = $this->playersTable->findByFd($frame->fd);
+            if ($json = json_decode($frame->data, true)) {
+                switch ($json['type']) {
+                    case 'buyItem':
+                        $response = $this->shopTable->purchase($frame->fd, $json['payload']['id']);
 
-            // if ($player['connected'] === 0) {
-            //     debugLog("[Worker {$server->worker_id}] [Server] Player is not connected: {$frame->fd}");
-            //     return;
-            // }
+                        $server->push($frame->fd, json_encode([
+                            'type' => 'buy-response',
+                            'status' => $response ? 'success' : 'error',
+                            'payload' => [
+                                'message' => $response 
+                                    ? 'Item comprado com sucesso!' 
+                                    : 'Erro ao comprar.',
+                            ],
+                        ]));
+
+                        // Emit to player whole state
+                        $server->push($frame->fd, json_encode([
+                            'history' => $this->historyTable->get(),
+                            'game' => $settingsTable->get('game'),
+                            'stats' => $this->getAllStats($statsTable),
+                            'player' => $this->playersTable->findByFd($frame->fd, true),
+                            'shop' => $this->shopTable->get($frame->fd),
+                        ]));
+                        return;
+                    default:
+                        debugLog("[Worker {$server->worker_id}] [Server] Received message from client that was not handled: {$frame->fd} - {$frame->data}");
+                        break;
+                }
+                
+                return;
+            }
 
             if ($frame->data === 'send-state') {
                 debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
