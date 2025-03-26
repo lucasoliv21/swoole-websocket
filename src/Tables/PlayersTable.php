@@ -31,6 +31,7 @@ final class PlayersTable
         $this->table->column('name', Table::TYPE_STRING, 50);
         $this->table->column('currentTeam', Table::TYPE_STRING, 50);
         $this->table->column('wins', Table::TYPE_INT);
+        $this->table->column('points', Table::TYPE_INT);
         $this->table->column('lastVotedAt', Table::TYPE_INT);
         $this->table->column('connected', Table::TYPE_INT);
         $this->table->column('lastLoginAt', Table::TYPE_INT);
@@ -121,6 +122,7 @@ final class PlayersTable
                 'name' => "Jogador {$fd}",
                 'connected' => 0,
                 'wins' => 0,
+                'points' => 0,
             ];
 
             echo "Novo usuário se conectou a base!\n";
@@ -195,6 +197,7 @@ final class PlayersTable
             debugLog("[PlayersTable] {$player['name']} ganhou um prêmio!");
 
             $this->table->incr($player['id'], 'wins');
+            $this->table->incr($player['id'], 'points', 3);
         }
     }
 
@@ -214,11 +217,11 @@ final class PlayersTable
     {
         $player = $this->findByFd($fd);
 
-        if ($player['wins'] < $amount) {
+        if ($player['points'] < $amount) {
             return false;
         }
 
-        $this->table->decr($player['id'], 'wins', $amount);
+        $this->table->decr($player['id'], 'points', $amount);
 
         return true;
     }
