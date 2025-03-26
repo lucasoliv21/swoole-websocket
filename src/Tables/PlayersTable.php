@@ -216,11 +216,11 @@ final class PlayersTable
     {
         $player = $this->findByFd($fd);
 
-        if ($player['wins'] < $amount) {
+        if ($player['points'] < $amount) {
             return false;
         }
 
-        $this->table->decr($player['id'], 'wins', $amount);
+        $this->table->decr($player['id'], 'points', $amount);
 
         return true;
     }
