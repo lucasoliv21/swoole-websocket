@@ -31,6 +31,7 @@ final class PlayersTable
         $this->table->column('name', Table::TYPE_STRING, 50);
         $this->table->column('currentTeam', Table::TYPE_STRING, 50);
         $this->table->column('wins', Table::TYPE_INT);
+        $this->table->column('points', Table::TYPE_INT);
         $this->table->column('lastVotedAt', Table::TYPE_INT);
         $this->table->column('connected', Table::TYPE_INT);
         $this->table->column('lastLoginAt', Table::TYPE_INT);
