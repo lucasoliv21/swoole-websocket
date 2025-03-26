@@ -121,6 +121,7 @@ final class PlayersTable
                 'name' => "Jogador {$fd}",
                 'connected' => 0,
                 'wins' => 0,
+                'points' => 0,
             ];
 
             echo "Novo usuário se conectou a base!\n";
@@ -195,6 +196,7 @@ final class PlayersTable
             debugLog("[PlayersTable] {$player['name']} ganhou um prêmio!");
 
             $this->table->incr($player['id'], 'wins');
+            $this->table->incr($player['id'], 'points', 3);
         }
     }
 
