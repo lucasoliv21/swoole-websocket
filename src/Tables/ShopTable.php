@@ -31,7 +31,7 @@ final class ShopTable
 
         $this->purchaseTable = new Table(self::MAX_PURCHASE);
 
-        $this->purchaseTable->column('userFd', Table::TYPE_INT,);
+        $this->purchaseTable->column('userId', Table::TYPE_STRING, 26);
         $this->purchaseTable->column('itemId', Table::TYPE_INT);
         $this->purchaseTable->column('createdAt', Table::TYPE_INT);
 
@@ -87,8 +87,10 @@ final class ShopTable
 
     private function isPurchased(int $playerFd, int $itemId): bool
     {
+        $player = $this->playersTable->findByFd($playerFd);
+
         foreach ($this->purchaseTable as $row) {
-            if ($row['userFd'] !== $playerFd || $row['itemId'] !== $itemId) {
+            if ($row['userId'] !== $player['id'] || $row['itemId'] !== $itemId) {
                 continue;
             }
 
@@ -125,8 +127,10 @@ final class ShopTable
             return false;
         }
 
-        $this->purchaseTable->set("{$playerFd}-{$itemId}", [
-            'userFd' => $playerFd,
+        $player = $this->playersTable->findByFd($playerFd);
+
+        $this->purchaseTable->set("{$player['id']}-{$itemId}", [
+            'userId' => $player['id'],
             'itemId' => $itemId,
             'createdAt' => time(),
         ]);
