@@ -115,6 +115,31 @@ final class ShopTable
         return $result;
     }
 
+    public function getFeatures(int $playerFd): array
+    {
+        $features = [];
+
+        foreach ($this->get($playerFd) as $row) {
+            if (! $row['purchased']) {
+                continue;
+            }
+
+            switch ($row['id']) {
+                case 1:
+                    $features[] = 'big';
+                    break;
+                case 2:
+                    $features[] = 'count';
+                    break;
+                case 3:
+                    $features[] = 'shiny';
+                    break;
+            }
+        }
+
+        return $features;
+    }
+
     public function purchase(int $playerFd, int $itemId): bool
     {
         $item = $this->table->get((string) $itemId);

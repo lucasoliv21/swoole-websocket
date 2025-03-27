@@ -342,6 +342,65 @@ final class MyServer
                             'shop' => $this->shopTable->get($frame->fd),
                         ]));
                         return;
+                    case 'vote':
+                        if ($settingsTable->get('game', 'status') !== 'running') {
+                            $server->push($frame->fd, json_encode([
+                                'type' => 'vote-response',
+                                'status' => 'error',
+                                'payload' => [
+                                    'message' => 'O jogo não está em andamento.'
+                                ]
+                            ]));
+
+                            return;
+                        }
+
+                        $result = $this->playersTable->vote($frame->fd);
+
+                        if (! $result) {
+                            // Está em cooldown
+                            $server->push($frame->fd, json_encode([
+                                'type' => 'vote-response',
+                                'status' => 'error',
+                                'payload' => [
+                                    'message' => 'Você já votou recentemente.'
+                                ],
+                            ]));
+
+                            return;
+                        }
+                    
+                        // Se chegou aqui, voto foi aceito
+                        switch ($json['payload']['team']) {
+                            case 'home':
+                                $settingsTable->incr('game', 'homeVotes');
+                                break;
+                            case 'away':
+                                $settingsTable->incr('game', 'awayVotes');
+                                break;
+                            default:
+                        }
+
+                        $server->push($frame->fd, json_encode([
+                            'type' => 'vote-response',
+                            'status' => 'success',
+                            'payload' => [
+                                'message' => 'Voto computado com sucesso!'
+                            ],
+                        ]));
+
+                        foreach ($server->connections as $fd) {
+                            $server->push($fd, json_encode([
+                                'type' => 'voted',
+                                'status' => 'success',
+                                'payload' => [
+                                    'self' => $fd === $frame->fd,
+                                    'team' => $json['payload']['team'],
+                                    'features' => $this->shopTable->getFeatures($frame->fd),
+                                ],
+                            ]));
+                        }
+                        break;
                     default:
                         debugLog("[Worker {$server->worker_id}] [Server] Received message from client that was not handled: {$frame->fd} - {$frame->data}");
                         break;
