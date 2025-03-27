@@ -45,39 +45,42 @@ final class ShopTable
         $items = [
             [
                 'id' => 1,
-                'name' => 'Votos gigantes',
-                'description' => 'Compre para aumentar o brazão ao votar.',
-                'image' => 'https://placehold.co/120',
-                'price' => 1,
+                'name' => 'VOTO GIGANTE',
+                'description' => 'O escudo do time será maior quando você realizar um voto.',
+                // 'image' => 'https://placehold.co/120',
+                'image' => 'VG',
+                'price' => 6,
             ],
             [
                 'id' => 2,
-                'name' => 'Mais votos',
+                'name' => 'VOTO DOBRADO',
                 'description' => 'Seus votos agora soltam mais confetes para todos verem.',
-                'image' => 'https://placehold.co/120',
-                'price' => 2,
+                // 'image' => 'https://placehold.co/120',
+                'image' => 'VD',
+                'price' => 9,
             ],
             [
                 'id' => 3,
-                'name' => 'AVC',
-                'description' => 'Simplesmente compra e morra.',
-                'image' => 'AVC',
-                'price' => 3,
+                'name' => 'VOTO COMBO',
+                'description' => 'Você solta um especial se seu voto acertar no múltiplo de 10.',
+                // 'image' => 'https://placehold.co/120',
+                'image' => 'VC',
+                'price' => 12,
             ],
-            [
-                'id' => 4,
-                'name' => 'Emojis',
-                'description' => 'Liberados para usar no final da partida.',
-                'image' => 'https://placehold.co/120',
-                'price' => 4,
-            ],
-            [
-                'id' => 5,
-                'name' => 'ADM',
-                'description' => 'Torne-se administrador do servidor.',
-                'image' => 'ADM',
-                'price' => 5,
-            ],
+            // [
+            //     'id' => 4,
+            //     'name' => 'Emojis',
+            //     'description' => 'Liberados para usar no final da partida.',
+            //     'image' => 'https://placehold.co/120',
+            //     'price' => 4,
+            // ],
+            // [
+            //     'id' => 5,
+            //     'name' => 'ADM',
+            //     'description' => 'Torne-se administrador do servidor.',
+            //     'image' => 'ADM',
+            //     'price' => 5,
+            // ],
         ];
 
         foreach ($items as $item) {
@@ -113,6 +116,31 @@ final class ShopTable
         }
 
         return $result;
+    }
+
+    public function getFeatures(int $playerFd): array
+    {
+        $features = [];
+
+        foreach ($this->get($playerFd) as $row) {
+            if (! $row['purchased']) {
+                continue;
+            }
+
+            switch ($row['id']) {
+                case 1:
+                    $features[] = 'big';
+                    break;
+                case 2:
+                    $features[] = 'count';
+                    break;
+                case 3:
+                    $features[] = 'count-2';
+                    break;
+            }
+        }
+
+        return $features;
     }
 
     public function purchase(int $playerFd, int $itemId): bool
