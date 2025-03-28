@@ -26,18 +26,38 @@ final class MyServer
     private TeamService $teamService;
 
     private ShopTable $shopTable;
+    
+    private string $serverIp;
+    
+    private int $serverPort;
+    
+    private int $phaseDurationWaiting;
+    
+    private int $phaseDurationRunning;
+    
+    private int $phaseDurationFinished;
 
     private int $workerQuantity = 8;
-
-    private const PHASE_DURATION_WAITING = 6;
-
-    private const PHASE_DURATION_RUNNING = 10;
-
-    private const PHASE_DURATION_FINISHED = 6;
+    
+    // // criando um construct para passar os valores de server, porta e tempo de fase
+    // public function __construct()
+    // {
+    //     $this->serverIp = $_ENV['SERVER_IP'];
+    //     $this->serverPort = (int) $_ENV['SERVER_PORT'];
+    //     $this->phaseDurationWaiting = (int) $_ENV['PHASE_DURATION_WAITING'];
+    //     $this->phaseDurationRunning = (int) $_ENV['PHASE_DURATION_RUNNING'];
+    //     $this->phaseDurationFinished = (int) $_ENV['PHASE_DURATION_FINISHED'];
+    // }
 
     public function main(): void
     {
-        $ws = new Server('0.0.0.0', 9502, SWOOLE_PROCESS);
+        $this->serverIp = $_ENV['SERVER_IP'];
+        $this->serverPort = (int) $_ENV['SERVER_PORT'];
+        $this->phaseDurationWaiting = (int) $_ENV['PHASE_DURATION_WAITING'];
+        $this->phaseDurationRunning = (int) $_ENV['PHASE_DURATION_RUNNING'];
+        $this->phaseDurationFinished = (int) $_ENV['PHASE_DURATION_FINISHED'];
+        
+        $ws = new Server($this->serverIp, $this->serverPort, SWOOLE_PROCESS);
 
         $ws->set([
             'hook_flags' => SWOOLE_HOOK_ALL,
@@ -131,7 +151,7 @@ final class MyServer
                             'awayVotes' => 0,
                             'awayFlag' => $teamAway['flag'],
                             'phaseStart' => time(),
-                            'phaseDuration' => self::PHASE_DURATION_WAITING,
+                            'phaseDuration' => $this->phaseDurationWaiting,
                             'createdAt' => time(),
                         ]);
     
@@ -147,16 +167,16 @@ final class MyServer
                             ]));
                         }
     
-                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_WAITING . " seconds for the next phase.");
+                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationWaiting . " seconds for the next phase.");
     
-                        Coroutine::sleep(self::PHASE_DURATION_WAITING);
+                        Coroutine::sleep($this->phaseDurationWaiting);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
     
                         $settingsTable->set('game', [
                             'status' => 'running',
                             'phaseStart' => time(),
-                            'phaseDuration' => self::PHASE_DURATION_RUNNING,  
+                            'phaseDuration' => $this->phaseDurationRunning,  
                         ]);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Sending game state to clients.");
@@ -171,16 +191,16 @@ final class MyServer
                             ]));
                         }
     
-                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_RUNNING . " seconds for the next phase.");
+                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationRunning . " seconds for the next phase.");
     
-                        Coroutine::sleep(self::PHASE_DURATION_RUNNING);
+                        Coroutine::sleep($this->phaseDurationRunning);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
     
                         $settingsTable->set('game', [
                             'status' => 'finished',
                             'phaseStart' => time(),
-                            'phaseDuration' => self::PHASE_DURATION_FINISHED,
+                            'phaseDuration' => $this->phaseDurationFinished,
                         ]);
     
                         $this->historyTable->add($settingsTable->get('game'));
@@ -223,9 +243,9 @@ final class MyServer
                             ]));
                         }
     
-                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . self::PHASE_DURATION_FINISHED . " seconds for the next phase.");
+                        debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationFinished . " seconds for the next phase.");
                         
-                        Coroutine::sleep(self::PHASE_DURATION_FINISHED);
+                        Coroutine::sleep($this->phaseDurationFinished,);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Game finished. Starting game cleanup!");
 

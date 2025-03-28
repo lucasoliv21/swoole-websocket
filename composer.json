@@ -17,5 +17,8 @@
     ],
     "require-dev": {
         "swoole/ide-helper": "@dev"
+    },
+    "require": {
+        "vlucas/phpdotenv": "^5.6"
     }
 }
