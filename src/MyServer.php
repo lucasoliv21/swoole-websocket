@@ -37,12 +37,13 @@ final class MyServer
     
     private int $phaseDurationFinished;
 
-    private int $workerQuantity = 8;
+    private int $workerQuantity;
 
     public function __construct()
     {
         $this->serverIp = $_ENV['SERVER_IP'];
         $this->serverPort = (int) $_ENV['SERVER_PORT'];
+        $this->workerQuantity = $this->getWorkerQuantity();
         $this->phaseDurationWaiting = (int) $_ENV['PHASE_DURATION_WAITING'];
         $this->phaseDurationRunning = (int) $_ENV['PHASE_DURATION_RUNNING'];
         $this->phaseDurationFinished = (int) $_ENV['PHASE_DURATION_FINISHED'];
@@ -500,5 +501,17 @@ final class MyServer
             ];
         }
         return $stats;
+    }
+
+    private function getWorkerQuantity(): int
+    {
+        $cpuCount = swoole_cpu_num();
+        $workerQuantity = (int) $_ENV['SERVER_WORKER_NUM'];
+
+        if ($workerQuantity > 0) {
+            return $workerQuantity;
+        }
+
+        return $cpuCount * 2;
     }
 }
