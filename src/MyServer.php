@@ -38,25 +38,18 @@ final class MyServer
     private int $phaseDurationFinished;
 
     private int $workerQuantity = 8;
-    
-    // // criando um construct para passar os valores de server, porta e tempo de fase
-    // public function __construct()
-    // {
-    //     $this->serverIp = $_ENV['SERVER_IP'];
-    //     $this->serverPort = (int) $_ENV['SERVER_PORT'];
-    //     $this->phaseDurationWaiting = (int) $_ENV['PHASE_DURATION_WAITING'];
-    //     $this->phaseDurationRunning = (int) $_ENV['PHASE_DURATION_RUNNING'];
-    //     $this->phaseDurationFinished = (int) $_ENV['PHASE_DURATION_FINISHED'];
-    // }
 
-    public function main(): void
+    public function __construct()
     {
         $this->serverIp = $_ENV['SERVER_IP'];
         $this->serverPort = (int) $_ENV['SERVER_PORT'];
         $this->phaseDurationWaiting = (int) $_ENV['PHASE_DURATION_WAITING'];
         $this->phaseDurationRunning = (int) $_ENV['PHASE_DURATION_RUNNING'];
         $this->phaseDurationFinished = (int) $_ENV['PHASE_DURATION_FINISHED'];
-        
+    }
+
+    public function main(): void
+    {
         $ws = new Server($this->serverIp, $this->serverPort, SWOOLE_PROCESS);
 
         $ws->set([
