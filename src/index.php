@@ -12,6 +12,11 @@ $server = new App\MyServer();
 $server->main();
 
 /**
+ * @TODO - Jogadores conectados serem exibidos no front
+ * 
+ * @TODO - Playerbot na plataforma para a gente testar o jogo
+ * 
+ * @TODO - Reconexão do player quando ele troca de aba ou algo do tipo.
  * 
  * @IDEA - Nova funcionalidade - Escolha de times: Antes de começar a partida, os jogadores
  * podem escolher em qual time querem jogar. Ao fim da partida o usuário recebe uma pontuação.
