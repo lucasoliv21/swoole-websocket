@@ -226,6 +226,11 @@ final class PlayersTable
         return true;
     }
 
+    public function count(): int
+    {
+        return count($this->get());
+    }
+
     private function setItems(int $fd, array $payload): void
     {
         $player = $this->findByFd($fd);
