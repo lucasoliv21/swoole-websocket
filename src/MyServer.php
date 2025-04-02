@@ -158,6 +158,7 @@ final class MyServer
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
                                 'shop' => $this->shopTable->get($fd),
+                                'count' => $this->playersTable->count(),
                             ]));
                         }
     
@@ -182,6 +183,7 @@ final class MyServer
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
                                 'shop' => $this->shopTable->get($fd),
+                                'count' => $this->playersTable->count(),
                             ]));
                         }
     
@@ -234,6 +236,7 @@ final class MyServer
                                 'stats' => $this->getAllStats($statsTable),
                                 'player' => $this->playersTable->findByFd($fd, true),
                                 'shop' => $this->shopTable->get($fd),
+                                'count' => $this->playersTable->count(),
                             ]));
                         }
     
@@ -354,6 +357,7 @@ final class MyServer
                             'stats' => $this->getAllStats($statsTable),
                             'player' => $this->playersTable->findByFd($frame->fd, true),
                             'shop' => $this->shopTable->get($frame->fd),
+                            'count' => $this->playersTable->count(),
                         ]));
                         return;
                     case 'vote':
@@ -432,6 +436,7 @@ final class MyServer
                     'stats' => $this->getAllStats($statsTable),
                     'player' => $this->playersTable->findByFd($frame->fd, true),
                     'shop' => $this->shopTable->get($frame->fd),
+                    'count' => $this->playersTable->count(),
                 ]));
 
                 return;
@@ -457,6 +462,7 @@ final class MyServer
                     'stats' => $this->getAllStats($statsTable),
                     'player' => $this->playersTable->findByFd($frame->fd, true),
                     'shop' => $this->shopTable->get($frame->fd),
+                    'count' => $this->playersTable->count(),
                 ]));
 
                 debugLog("[Worker {$server->worker_id}] [Server] O jogador {$frame->fd} escolheu o time: {$team}");
