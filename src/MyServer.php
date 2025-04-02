@@ -313,6 +313,20 @@ final class MyServer
             $response->status(101);
             $response->end();
 
+            go(function () use ($request, $response, $ws): void {
+                debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$request->server['path_info']} - {$request->fd}");
+
+                foreach ($ws->connections as $fd) {
+                    $ws->push($fd, json_encode([
+                        'type' => 'connected',
+                        'status' => 'success',
+                        'payload' => [
+                            'message' => "Player {$request->server['path_info']} has connected.",
+                        ],
+                    ]));
+                }
+            });
+
             return true;
         });
 
@@ -469,6 +483,16 @@ final class MyServer
             debugLog("[Worker {$server->worker_id} - {$ws->worker_id}] [Server] Player has disconnected!!!: {$fd}");
 
             $this->playersTable->remove($fd);
+
+            foreach ($server->connections as $fd) {
+                $server->push($fd, json_encode([
+                    'type' => 'disconnected',
+                    'status' => 'success',
+                    'payload' => [
+                        'message' => "Player {$fd} has disconnected.",
+                    ],
+                ]));
+            }
         });
 
         $ws->start();
