@@ -512,9 +512,9 @@ final class MyServer
 
             $this->playersTable->remove($fd);
 
-            foreach ($server->connections as $fd) {
-                // if ($server->isEstablished($fd)) {
-                    $server->push($fd, json_encode([
+            foreach ($server->connections as $playerFd) {
+                // if ($server->isEstablished($playerFd)) {
+                    $server->push($playerFd, json_encode([
                         'type' => 'disconnected',
                         'status' => 'success',
                         'payload' => [
