@@ -231,6 +231,19 @@ final class PlayersTable
         return count($this->get());
     }
 
+    public function sanitizeId(string $id): string
+    {
+        $paths = explode('/', $id);
+        
+        if (empty($paths)) {
+            return $id;
+        }
+
+        $lastPath = array_pop($paths);
+
+        return preg_replace('/[^a-zA-Z0-9]/', '', $lastPath);
+    }
+
     private function setItems(int $fd, array $payload): void
     {
         $player = $this->findByFd($fd);

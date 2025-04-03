@@ -280,9 +280,11 @@ final class MyServer
                 return false;
             }
 
+            $userId = $this->playersTable->sanitizeId($request->server['path_info']);
+
             $result = $this->playersTable->add(
                 fd: $request->fd,
-                userId: $request->server['path_info'],
+                userId: $userId,
             );
 
             if (! $result) {
@@ -316,15 +318,18 @@ final class MyServer
             $response->status(101);
             $response->end();
 
-            go(function () use ($request, $response, $ws): void {
-                debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$request->server['path_info']} - {$request->fd}");
+            go(function () use ($request, $userId, $ws): void {
+                debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$userId} - {$request->fd}");
+
+                $user = $this->playersTable->find($userId, true);
 
                 foreach ($ws->connections as $fd) {
+                    debugLog("[Worker {$ws->worker_id}] [Server] !! Sending message to everyone on worker {$ws->worker_id}.");
                     $ws->push($fd, json_encode([
                         'type' => 'connected',
                         'status' => 'success',
                         'payload' => [
-                            'message' => "Player {$request->server['path_info']} has connected.",
+                            'name' => $user['name'],
                         ],
                     ]));
                 }
@@ -488,6 +493,8 @@ final class MyServer
         $ws->on('close', function ($server, int $fd) use ($ws): void {
             debugLog("[Worker {$server->worker_id} - {$ws->worker_id}] [Server] Player has disconnected!!!: {$fd}");
 
+            $user = $this->playersTable->findByFd($fd);
+
             $this->playersTable->remove($fd);
 
             foreach ($server->connections as $fd) {
@@ -496,7 +503,7 @@ final class MyServer
                         'type' => 'disconnected',
                         'status' => 'success',
                         'payload' => [
-                            'message' => "Player {$fd} has disconnected.",
+                            'name' => $user['name'],
                         ],
                     ]));
                 }
