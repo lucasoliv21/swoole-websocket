@@ -282,6 +282,17 @@ final class MyServer
 
             $userId = $this->playersTable->sanitizeId($request->server['path_info']);
 
+            // check if ulid is valid
+            if (! $this->playersTable->isValidId($userId)) {
+                $response->status(400);
+                $response->header('Content-Type', 'application/json');
+                $response->end(json_encode([
+                    'message' => 'Invalid user id.',
+                ]));
+
+                return false;
+            }
+
             $result = $this->playersTable->add(
                 fd: $request->fd,
                 userId: $userId,
@@ -491,6 +502,10 @@ final class MyServer
         });
 
         $ws->on('close', function ($server, int $fd) use ($ws): void {
+            if (! $server->isEstablished($fd)) {
+                return;
+            }
+
             debugLog("[Worker {$server->worker_id} - {$ws->worker_id}] [Server] Player has disconnected!!!: {$fd}");
 
             $user = $this->playersTable->findByFd($fd);
@@ -498,7 +513,7 @@ final class MyServer
             $this->playersTable->remove($fd);
 
             foreach ($server->connections as $fd) {
-                if ($server->isEstablished($fd)) {
+                // if ($server->isEstablished($fd)) {
                     $server->push($fd, json_encode([
                         'type' => 'disconnected',
                         'status' => 'success',
@@ -506,7 +521,7 @@ final class MyServer
                             'name' => $user['name'],
                         ],
                     ]));
-                }
+                // }
             }
         });
 

@@ -244,6 +244,11 @@ final class PlayersTable
         return preg_replace('/[^a-zA-Z0-9]/', '', $lastPath);
     }
 
+    public function isValidId(string $id): bool
+    {
+        return preg_match('/^[0-9A-HJKMNP-TV-Z]{26}$/', $id) === 1;
+    }
+
     private function setItems(int $fd, array $payload): void
     {
         $player = $this->findByFd($fd);
