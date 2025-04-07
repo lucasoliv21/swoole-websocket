@@ -136,12 +136,12 @@ final class PlayerBotService
         }
     }
 
-    public function vote(): void
+    public function vote(?callable $callback = null): void
     {
         $players = $this->get();
 
         foreach ($players as $player) {
-            go(function () use ($player) {
+            go(function () use ($player, $callback) {
                 // Get round duration
                 $roundDuration = (int) $_ENV['PHASE_DURATION_RUNNING'] ?? 60;
 
@@ -160,6 +160,11 @@ final class PlayerBotService
 
                     debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) votou.");
                     debugLog($result);
+
+                    // Call the callback function
+                    if (is_callable($callback)) {
+                        $callback($player['currentTeam']);
+                    }
 
                     // Sleep for 1 second
                     Coroutine::sleep(1);

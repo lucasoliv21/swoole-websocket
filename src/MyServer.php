@@ -217,8 +217,22 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationRunning . " seconds for the next phase.");
     
-                        go(function () {
-                            $this->playerBotService->vote();
+                        $voteCallback = function ($team) use ($server) {
+                            foreach ($server->connections as $fd) {
+                                $server->push($fd, json_encode([
+                                    'type' => 'voted',
+                                    'status' => 'success',
+                                    'payload' => [
+                                        'self' => false,
+                                        'team' => $team,
+                                        'features' => [], // TODO: Voto de bot não tem feature ainda
+                                    ],
+                                ]));
+                            }
+                        };
+
+                        go(function () use ($voteCallback) {
+                            $this->playerBotService->vote($voteCallback);
                         });
 
                         Coroutine::sleep($this->phaseDurationRunning);
