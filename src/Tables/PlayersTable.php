@@ -6,6 +6,7 @@ namespace App\Tables;
 
 use App\Exceptions\PlayerNotFoundException;
 use App\Exceptions\PlayerOfflineException;
+use Deprecated;
 use Swoole\Table;
 use Ulid\Ulid;
 
@@ -119,7 +120,7 @@ final class PlayersTable
             'wins' => 0,
             'points' => 0,
             'lastVotedAt' => 0,
-            'isBot' => 0,
+            'isBot' => 1,
         ];
 
         $this->table->set($userId, $player);
@@ -188,6 +189,7 @@ final class PlayersTable
 
         if ($player['connected'] === 1) {
             // Player já está logado
+            debugLog("[PlayersTable] O usuário {$userId} já está logado!!");
             return;
         }
 
@@ -232,6 +234,7 @@ final class PlayersTable
         $this->table->decr($player['id'], 'connected');
     }
 
+    #[Deprecated('Será desativado quando tudo for por userId ao invés de FD.')]
     public function removeByFd(int $fd): void
     {
         try {
@@ -250,7 +253,17 @@ final class PlayersTable
         $this->table->decr($player['id'], 'connected');
     }
 
-    public function selectTeam(int $fd, string $team): void
+    public function selectTeam(string $userId, string $team): void
+    {
+        debugLog("[PlayersTable] {$userId} escolheu o time {$team}");
+
+        $this->table->set($userId, [
+            'currentTeam' => $team,
+        ]);
+    }
+
+    #[Deprecated('Será desativado quando tudo for por userId ao invés de FD.')]
+    public function selectTeamByFd(int $fd, string $team): void
     {
         $this->setItems($fd, [
             'currentTeam' => $team,

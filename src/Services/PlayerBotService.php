@@ -21,17 +21,19 @@ final class PlayerBotService
 
     public function get(bool $searchOffline = false): array
     {
-        $players = [];
+        $botPlayers = [];
 
-        foreach ($this->playersTable->get($searchOffline) as $player) {
-            if (! $player['isBot']) {
+        $allPlayers = $this->playersTable->get($searchOffline);
+
+        foreach ($allPlayers as $player) {
+            if ($player['isBot'] !== 1) {
                 continue;
             }
 
-            $players[] = $player;
+            $botPlayers[] = $player;
         }
 
-        return $players;
+        return $botPlayers;
     }
 
     /**
@@ -61,6 +63,8 @@ final class PlayerBotService
         // Pego os bots que estão online
         $players = $this->get();
 
+        debugLog("[PlayerBotService] Temos " . count($players) . " bots online e desejamos ter {$count} bots.");
+
         if (count($players) === $count) {
             // Se o número de bots online for igual ao valor desejado, não precisamos
             // logar mais bots.
@@ -70,16 +74,19 @@ final class PlayerBotService
         } elseif (count($players) < $count) {
             // Se o número de bots online for menor que o valor desejado, preicsamos
             // logar mais bots.
-
-            $playersWithOffline = $this->get(searchOffline: true);
-
             $connectCount = $count - count($players);
 
             debugLog("[PlayerBotService] Vamos conectar {$connectCount} bots.");
 
+            $playersWithOffline = $this->playersTable->get(searchOffline: true);
+
             foreach ($playersWithOffline as $player) {
                 if ($connectCount <= 0) {
                     break;
+                }
+
+                if ($player['isBot'] === false) {
+                    continue;
                 }
 
                 // Se o bot já estiver online, não precisamos logar novamente
@@ -87,7 +94,11 @@ final class PlayerBotService
                     continue;
                 }
 
-                $this->playersTable->setOnline($player['id']);
+                $this->playersTable->setOnline($player['id'], $player['fd']);
+
+                debugLog("Conectando bot {$player['name']} ({$player['id']})");
+
+                $connectCount--;
             }
         } else {
             // Se o número de bots online for maior que o valor desejado, precisamos
@@ -101,6 +112,8 @@ final class PlayerBotService
                     break;
                 }
 
+                debugLog("Desconectando bot {$player['name']} ({$player['id']})");
+
                 // Desconecto o bot
                 $this->playersTable->remove($player['id']);
 
@@ -108,6 +121,17 @@ final class PlayerBotService
             }
 
             return;
+        }
+    }
+
+    public function chooseTeam(): void
+    {
+        $players = $this->get();
+
+        foreach ($players as $player) {
+            $options = ['home', 'away'];
+
+            $this->playersTable->selectTeam($player['id'], $options[array_rand($options)]);
         }
     }
 }

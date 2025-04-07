@@ -130,6 +130,8 @@ final class MyServer
                     debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
 
                     $this->playerBotService->createBots();
+
+                    debugLog("[Worker {$server->worker_id}] [Gameloop] Bots created!");
     
                     while (true) {
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Starting game state and setting to waiting.");
@@ -137,7 +139,7 @@ final class MyServer
                         $teamHome = $this->teamService->findRandom();
                         $teamAway = $this->teamService->findRandom();
 
-                        go(function () use ($server, $settingsTable, $statsTable): void {
+                        go(function () use (&$server, &$settingsTable, &$statsTable): void {
                             $this->playerBotService->joinRoom();
 
                             // emit to all
@@ -186,9 +188,9 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationWaiting . " seconds for the next phase.");
     
-                        // go(function () {
-                        //     $this->playerBotService->chooseTeam();
-                        // });
+                        go(function () {
+                            $this->playerBotService->chooseTeam();
+                        });
 
                         Coroutine::sleep($this->phaseDurationWaiting);
     
@@ -533,7 +535,7 @@ final class MyServer
                     ? $settingsTable->get('game', 'homeName') 
                     : $settingsTable->get('game', 'awayName');
 
-                $this->playersTable->selectTeam($frame->fd, $team);
+                $this->playersTable->selectTeamByFd($frame->fd, $team);
                
                 $server->push($frame->fd, json_encode([
                     'history' => $this->historyTable->get(),
