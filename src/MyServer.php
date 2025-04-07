@@ -450,7 +450,7 @@ final class MyServer
                             return;
                         }
 
-                        $result = $this->playersTable->vote($frame->fd);
+                        $result = $this->playersTable->voteByFd($frame->fd);
 
                         if (! $result) {
                             // Está em cooldown

@@ -200,7 +200,26 @@ final class PlayersTable
         ]);
     }
 
-    public function vote(int $fd): bool
+    public function vote(string $userId): bool
+    {
+        $player = $this->find($userId);
+
+        $time = time();
+
+        $elapsed = $time - $player['lastVotedAt'];
+
+        if ($elapsed >= self::VOTE_COOLDOWN) {
+            $this->table->set($userId, [
+                'lastVotedAt' => $time,
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+    #[Deprecated('Será desativado quando tudo for por userId ao invés de FD.')]
+    public function voteByFd(int $fd): bool
     {
         $player = $this->findByFd($fd);
 
