@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App;
 
+use App\Services\PlayerBotService;
 use App\Services\TeamService;
 use App\Tables\HistoryTable;
 use App\Tables\PlayersTable;
@@ -26,6 +27,8 @@ final class MyServer
     private TeamService $teamService;
 
     private ShopTable $shopTable;
+
+    private PlayerBotService $playerBotService;
     
     private string $serverIp;
     
@@ -87,6 +90,8 @@ final class MyServer
 
         $this->teamService = new TeamService();
 
+        $this->playerBotService = new PlayerBotService($this->playersTable);
+
         // Após criar a tabela $statsTable
         foreach ($this->teamService->getTeams() as $team) {
             $statsTable->set($team['name'], [
@@ -123,13 +128,30 @@ final class MyServer
                 go(function () use ($settingsTable, $statsTable, $server): void {
 
                     debugLog("[Worker {$server->worker_id}] [Gameloop] Starting!");
+
+                    $this->playerBotService->createBots();
     
                     while (true) {
-    
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Starting game state and setting to waiting.");
     
                         $teamHome = $this->teamService->findRandom();
                         $teamAway = $this->teamService->findRandom();
+
+                        go(function () use ($server, $settingsTable, $statsTable): void {
+                            $this->playerBotService->joinRoom();
+
+                            // emit to all
+                            foreach ($server->connections as $fd) {
+                                $server->push($fd, json_encode([
+                                    'history' => $this->historyTable->get(),
+                                    'game' => $settingsTable->get('game'),
+                                    'stats' => $this->getAllStats($statsTable),
+                                    'player' => $this->playersTable->findByFd($fd, true),
+                                    'shop' => $this->shopTable->get($fd),
+                                    'count' => $this->playersTable->count(),
+                                ]));
+                            }
+                        });
                         
                         while ($teamHome['id'] === $teamAway['id']) {
                             $teamAway = $this->teamService->findRandom();
@@ -164,6 +186,10 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationWaiting . " seconds for the next phase.");
     
+                        // go(function () {
+                        //     $this->playerBotService->chooseTeam();
+                        // });
+
                         Coroutine::sleep($this->phaseDurationWaiting);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to running.");
@@ -189,6 +215,10 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationRunning . " seconds for the next phase.");
     
+                        // go(function () {
+                        //     $this->playerBotService->vote();
+                        // });
+
                         Coroutine::sleep($this->phaseDurationRunning);
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Setting game state to finished.");
@@ -329,22 +359,37 @@ final class MyServer
             $response->status(101);
             $response->end();
 
-            go(function () use ($request, $userId, $ws): void {
-                debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$userId} - {$request->fd}");
+            debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$userId} - {$request->fd}");
 
-                $user = $this->playersTable->find($userId, true);
+            $user = $this->playersTable->find($userId, true);
 
-                foreach ($ws->connections as $fd) {
-                    debugLog("[Worker {$ws->worker_id}] [Server] !! Sending message to everyone on worker {$ws->worker_id}.");
-                    $ws->push($fd, json_encode([
-                        'type' => 'connected',
-                        'status' => 'success',
-                        'payload' => [
-                            'name' => $user['name'],
-                        ],
-                    ]));
-                }
-            });
+            foreach ($ws->connections as $fd) {
+                debugLog("[Worker {$ws->worker_id}] [Server] !! Sending message to everyone on worker {$ws->worker_id}.");
+                $ws->push($fd, json_encode([
+                    'type' => 'connected',
+                    'status' => 'success',
+                    'payload' => [
+                        'name' => $user['name'],
+                    ],
+                ]));
+            }
+
+            // go(function () use ($request, $userId, $ws): void {
+                // debugLog("[Worker {$ws->worker_id}] [Server] Player has connected: {$userId} - {$request->fd}");
+
+                // $user = $this->playersTable->find($userId, true);
+
+                // foreach ($ws->connections as $fd) {
+                //     debugLog("[Worker {$ws->worker_id}] [Server] !! Sending message to everyone on worker {$ws->worker_id}.");
+                //     $ws->push($fd, json_encode([
+                //         'type' => 'connected',
+                //         'status' => 'success',
+                //         'payload' => [
+                //             'name' => $user['name'],
+                //         ],
+                //     ]));
+                // }
+            // });
 
             return true;
         });
@@ -460,6 +505,10 @@ final class MyServer
             if ($frame->data === 'send-state') {
                 debugLog("[Worker {$server->worker_id}] [Server] The client request the state, so we are sending it: {$frame->fd}");
 
+                if (! $server->isEstablished($frame->fd)) {
+                    return;
+                }
+
                 $server->push($frame->fd, json_encode([
                     'history' => $this->historyTable->get(),
                     'game' => $settingsTable->get('game'),
@@ -510,7 +559,7 @@ final class MyServer
 
             $user = $this->playersTable->findByFd($fd);
 
-            $this->playersTable->remove($fd);
+            $this->playersTable->removeByFd($fd);
 
             foreach ($server->connections as $playerFd) {
                 // if ($server->isEstablished($playerFd)) {
@@ -560,7 +609,7 @@ final class MyServer
     private function getWorkerQuantity(): int
     {
         $cpuCount = swoole_cpu_num();
-        $workerQuantity = (int) $_ENV['SERVER_WORKER_NUM'];
+        $workerQuantity = (int) $_ENV['SERVER_WORKER_NUM'] ?? 0;
 
         if ($workerQuantity > 0) {
             return $workerQuantity;

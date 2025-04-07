@@ -7,6 +7,7 @@ namespace App\Tables;
 use App\Exceptions\PlayerNotFoundException;
 use App\Exceptions\PlayerOfflineException;
 use Swoole\Table;
+use Ulid\Ulid;
 
 final class PlayersTable
 {
@@ -34,6 +35,7 @@ final class PlayersTable
         $this->table->column('points', Table::TYPE_INT);
         $this->table->column('lastVotedAt', Table::TYPE_INT);
         $this->table->column('connected', Table::TYPE_INT);
+        $this->table->column('isBot', Table::TYPE_INT);
         $this->table->column('lastLoginAt', Table::TYPE_INT);
 
         $this->table->create();
@@ -44,7 +46,7 @@ final class PlayersTable
         $player = $this->table->get("$userId");
 
         if ($player === false) {
-            throw new PlayerNotFoundException($userId, 'fd');
+            throw new PlayerNotFoundException($userId, 'userId');
         }
 
         if (! $searchOffline && $player['connected'] === 0) {
@@ -97,9 +99,35 @@ final class PlayersTable
         return $result;
     }
 
+    public function addBot(): void
+    {
+        if (count($this->table) >= self::MAX_PLAYERS) {
+            // Já atingimos o máximo de jogadores na memória
+            return;
+        }
+
+        $userId = (string) Ulid::generate();
+
+        $randomString = str_shuffle('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789');
+        $randomString = substr($randomString, 0, 5);
+
+        $player = [
+            'id' => $userId,
+            'fd' => 0,
+            'name' => "Bot {$randomString}",
+            'connected' => 0,
+            'wins' => 0,
+            'points' => 0,
+            'lastVotedAt' => 0,
+            'isBot' => 0,
+        ];
+
+        $this->table->set($userId, $player);
+    }
+
     public function add(int $fd, string $userId): bool
     {
-        $userId = preg_replace('/[^a-zA-Z0-9]/', '', $userId);
+        // $userId = preg_replace('/[^a-zA-Z0-9]/', '', $userId);
 
         try {
             $player = $this->find(
@@ -123,6 +151,7 @@ final class PlayersTable
                 'connected' => 0,
                 'wins' => 0,
                 'points' => 0,
+                'isBot' => 0,
             ];
 
             echo "Novo usuário se conectou a base!\n";
@@ -135,13 +164,38 @@ final class PlayersTable
             return false;
         }
 
-        $player['fd'] = $fd;
-        $player['connected'] = 1;
-        $player['lastLoginAt'] = time();
-
         $this->table->set($userId, $player);
 
+        $this->setOnline($userId, $fd);
+
         return true;
+    }
+
+    public function setOnline(string $userId, int $fd): void
+    {
+        try {
+            $player = $this->find(userId: $userId, searchOffline: true);
+        } catch (PlayerOfflineException) {
+            // O usuário aqui está deslogado mesmo, 
+            // então não precisamos fazer nada.
+            debugLog("[PlayersTable] O usuário {$userId} está offline.");
+            return;
+        } catch (PlayerNotFoundException) {
+            // O usuário não existe, então não precisamos fazer nada.
+            debugLog("[PlayersTable] O usuário {$userId} não existe.");
+            return;
+        }
+
+        if ($player['connected'] === 1) {
+            // Player já está logado
+            return;
+        }
+
+        $this->table->set($userId, [
+            'connected' => 1,
+            'fd' => $fd,
+            'lastLoginAt' => time(),
+        ]);
     }
 
     public function vote(int $fd): bool
@@ -160,7 +214,25 @@ final class PlayersTable
         return false;
     }
 
-    public function remove(int $fd): void
+    public function remove(string $id): void
+    {
+        try {
+            $player = $this->find($id);
+        } catch (PlayerNotFoundException) {
+            // Se o player não foi encontrado, então ele não
+            // chegou a logar. Isso significa que o server tá cheio
+            // ou usuário tentou abrir outra aba.
+            return;
+        }
+
+        if ($player['connected'] === 0) {
+            throw new PlayerOfflineException($player['id']);
+        }
+
+        $this->table->decr($player['id'], 'connected');
+    }
+
+    public function removeByFd(int $fd): void
     {
         try {
             $player = $this->findByFd($fd);
