@@ -150,24 +150,34 @@ final class PlayerBotService
                 $maxVotes = (int) ($roundDuration / 1);
 
                 // Get a random number of votes between 1 and the max votes
-                $votes = random_int(1, $maxVotes);
+                $votes = random_int(1, $maxVotes - 1);
 
                 debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) vai votar {$votes} vezes.");
 
                 for ($i = 0; $i < $votes; $i++) {
+                    $totalMiliseconds = 1000;
+                    $aMiliseconds = random_int(1, $totalMiliseconds);
+                    $bMiliseconds = $totalMiliseconds - $aMiliseconds;
+
+                    // Sleep for $a milliseconds with native sleep function php, even if is blocking
+                    usleep($aMiliseconds * 1000);
+
                     // Send the vote to the server
                     $result = $this->playersTable->vote($player['id'], $player['currentTeam']);
 
-                    debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) votou.");
-                    debugLog($result);
+                    if ($result) {
+                        debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) votou.");
 
-                    // Call the callback function
-                    if (is_callable($callback)) {
-                        $callback($player['currentTeam']);
+                        // Call the callback function
+                        if (is_callable($callback)) {
+                            $callback($player['currentTeam']);
+                        }
+                    } else {
+                        debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) não conseguiu votar.");
                     }
 
                     // Sleep for 1 second
-                    Coroutine::sleep(1);
+                    usleep($bMiliseconds * 1000);
                 }
             });
         }
