@@ -84,7 +84,7 @@ final class MyServer
 
         $this->historyTable = new HistoryTable();
 
-        $this->playersTable = new PlayersTable();
+        $this->playersTable = new PlayersTable($settingsTable);
 
         $this->shopTable = new ShopTable($this->playersTable);
 
@@ -217,9 +217,9 @@ final class MyServer
     
                         debugLog("[Worker {$server->worker_id}] [Gameloop] Waiting for " . $this->phaseDurationRunning . " seconds for the next phase.");
     
-                        // go(function () {
-                        //     $this->playerBotService->vote();
-                        // });
+                        go(function () {
+                            $this->playerBotService->vote();
+                        });
 
                         Coroutine::sleep($this->phaseDurationRunning);
     
@@ -450,7 +450,7 @@ final class MyServer
                             return;
                         }
 
-                        $result = $this->playersTable->voteByFd($frame->fd);
+                        $result = $this->playersTable->voteByFd($frame->fd, $json['payload']['team']);
 
                         if (! $result) {
                             // Está em cooldown
@@ -466,15 +466,6 @@ final class MyServer
                         }
                     
                         // Se chegou aqui, voto foi aceito
-                        switch ($json['payload']['team']) {
-                            case 'home':
-                                $settingsTable->incr('game', 'homeVotes');
-                                break;
-                            case 'away':
-                                $settingsTable->incr('game', 'awayVotes');
-                                break;
-                            default:
-                        }
 
                         $server->push($frame->fd, json_encode([
                             'type' => 'vote-response',

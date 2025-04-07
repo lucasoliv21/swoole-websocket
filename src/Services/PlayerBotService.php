@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Tables\PlayersTable;
+use Swoole\Coroutine;
 use Ulid\Ulid;
 
 final class PlayerBotService
@@ -132,6 +133,38 @@ final class PlayerBotService
             $options = ['home', 'away'];
 
             $this->playersTable->selectTeam($player['id'], $options[array_rand($options)]);
+        }
+    }
+
+    public function vote(): void
+    {
+        $players = $this->get();
+
+        foreach ($players as $player) {
+            go(function () use ($player) {
+                // Get round duration
+                $roundDuration = (int) $_ENV['PHASE_DURATION_RUNNING'] ?? 60;
+
+                // The user can only vote 1 time per second, so lets calculate
+                // the maximum votes that the bot can do in the round duration
+                $maxVotes = (int) ($roundDuration / 1);
+
+                // Get a random number of votes between 1 and the max votes
+                $votes = random_int(1, $maxVotes);
+
+                debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) vai votar {$votes} vezes.");
+
+                for ($i = 0; $i < $votes; $i++) {
+                    // Send the vote to the server
+                    $result = $this->playersTable->vote($player['id'], $player['currentTeam']);
+
+                    debugLog("[PlayerBotService] Bot {$player['name']} ({$player['id']}) votou.");
+                    debugLog($result);
+
+                    // Sleep for 1 second
+                    Coroutine::sleep(1);
+                }
+            });
         }
     }
 }

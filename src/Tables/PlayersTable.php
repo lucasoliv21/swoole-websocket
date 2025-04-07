@@ -24,8 +24,9 @@ final class PlayersTable
         'lastLoginAt',
     ];
 
-    public function __construct()
-    {
+    public function __construct(
+        private Table $settingsTable
+    ) {
         $this->table = new Table(self::MAX_PLAYERS);
 
         $this->table->column('id', Table::TYPE_STRING, 26);
@@ -200,7 +201,7 @@ final class PlayersTable
         ]);
     }
 
-    public function vote(string $userId): bool
+    public function vote(string $userId, string $team): bool
     {
         $player = $this->find($userId);
 
@@ -212,6 +213,17 @@ final class PlayersTable
             $this->table->set($userId, [
                 'lastVotedAt' => $time,
             ]);
+
+            switch ($team) {
+                case 'home':
+                    $this->settingsTable->incr('game', 'homeVotes');
+                    break;
+                case 'away':
+                    $this->settingsTable->incr('game', 'awayVotes');
+                    break;
+                default:
+            }
+
             return true;
         }
 
@@ -219,7 +231,7 @@ final class PlayersTable
     }
 
     #[Deprecated('Será desativado quando tudo for por userId ao invés de FD.')]
-    public function voteByFd(int $fd): bool
+    public function voteByFd(int $fd, string $team): bool
     {
         $player = $this->findByFd($fd);
 
@@ -229,6 +241,17 @@ final class PlayersTable
 
         if ($elapsed >= self::VOTE_COOLDOWN) {
             $this->setItems($fd, ['lastVotedAt' => $time]);
+
+            switch ($team) {
+                case 'home':
+                    $this->settingsTable->incr('game', 'homeVotes');
+                    break;
+                case 'away':
+                    $this->settingsTable->incr('game', 'awayVotes');
+                    break;
+                default:
+            }
+
             return true;
         }
 
